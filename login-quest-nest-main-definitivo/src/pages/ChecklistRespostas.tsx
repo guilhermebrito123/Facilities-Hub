@@ -1,508 +1,570 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Save, X, Edit, Trash2, RefreshCw } from "lucide-react";
+import { ClipboardList, RefreshCw, Send } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-type ChecklistRespostaRow =
-  Database["public"]["Tables"]["checklist_respostas"]["Row"];
-type ChecklistRespostaInsert =
-  Database["public"]["Tables"]["checklist_respostas"]["Insert"];
-type ChecklistExecucaoRow =
-  Database["public"]["Tables"]["checklist_execucoes"]["Row"];
-type ChecklistItemRow = Database["public"]["Tables"]["checklist_itens"]["Row"];
+type ExecucaoStatus = Database["public"]["Enums"]["status_execucao"];
+type ExecucaoRow = Database["public"]["Tables"]["execucao_checklist"]["Row"];
+type ExecucaoItemRow = Database["public"]["Tables"]["execucao_checklist_item"]["Row"];
+type RespostaExecucaoRow = Database["public"]["Tables"]["resposta_execucao_checklist"]["Row"];
+type RespostaItemRow = Database["public"]["Tables"]["resposta_execucao_checklist_item"]["Row"];
+type ChecklistSummary = Pick<Database["public"]["Tables"]["checklist"]["Row"], "id" | "nome">;
+type ChecklistItemSummary = Pick<
+  Database["public"]["Tables"]["checklist_item"]["Row"],
+  "id" | "descricao" | "ordem"
+>;
+type ProfileSummary = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name">;
 
-interface ChecklistExecucaoWithRelations extends ChecklistExecucaoRow {
-  checklist?: { nome: string | null } | null;
-  colaborador?: { id: string | null; nome_completo: string | null } | null;
-  status?: ChecklistExecucaoRow["status"];
-}
-
-interface ChecklistRespostaWithRelations extends ChecklistRespostaRow {
-  execucao?: {
-    id: string;
-    data_execucao: string | null;
-    status: ChecklistExecucaoRow["status"];
-    checklist?: { nome: string | null } | null;
-    colaborador?: { id: string | null; nome_completo: string | null } | null;
-  } | null;
-  item?: { descricao: string | null } | null;
-}
-
-interface ChecklistRespostaForm {
-  execucao_id: string;
-  item_id: string;
-  resposta: string;
-  conforme: "true" | "false" | "null";
-  foto_url: string;
-  observacao: string;
-  created_at: string;
-}
-
-const initialForm: ChecklistRespostaForm = {
-  execucao_id: "",
-  item_id: "",
-  resposta: "",
-  conforme: "null",
-  foto_url: "",
-  observacao: "",
-  created_at: "",
+type ExecucaoWithRelations = ExecucaoRow & {
+  checklist?: ChecklistSummary | null;
+  supervisor?: ProfileSummary | null;
 };
 
+type ExecucaoItemWithDetails = ExecucaoItemRow & {
+  checklist_item?: ChecklistItemSummary | null;
+  resposta?: RespostaItemRow | null;
+};
+
+interface ExecucaoRespostaForm {
+  resposta: string;
+  conforme: boolean;
+  observacoes: string;
+  foto: string;
+}
+
+interface ItemRespostaForm {
+  resposta: string;
+  conforme: boolean;
+  observacoes: string;
+  foto: string;
+}
+
+const statusLabels: Record<ExecucaoStatus, string> = {
+  ativo: "Ativo",
+  concluido: "Concluído",
+  atrasado: "Atrasado",
+  cancelado: "Cancelado",
+};
+
+const selectableExecutionStatuses: ExecucaoStatus[] = ["ativo", "atrasado"];
+
 const ChecklistRespostas = () => {
-  const [respostas, setRespostas] = useState<ChecklistRespostaWithRelations[]>(
-    []
-  );
-  const [execucoes, setExecucoes] = useState<ChecklistExecucaoWithRelations[]>(
-    []
-  );
-  const [itens, setItens] = useState<ChecklistItemRow[]>([]);
-  const [formData, setFormData] = useState<ChecklistRespostaForm>(initialForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [selectedResposta, setSelectedResposta] =
-    useState<ChecklistRespostaWithRelations | null>(null);
+  const [execucoes, setExecucoes] = useState<ExecucaoWithRelations[]>([]);
+  const [selectedExecucaoId, setSelectedExecucaoId] = useState<string>("");
+  const [execucaoResposta, setExecucaoResposta] = useState<RespostaExecucaoRow | null>(null);
+  const [execucaoItems, setExecucaoItems] = useState<ExecucaoItemWithDetails[]>([]);
+  const [itemResponses, setItemResponses] = useState<Record<string, ItemRespostaForm>>({});
+  const [execucaoResponseForm, setExecucaoResponseForm] = useState<ExecucaoRespostaForm>({
+    resposta: "",
+    conforme: true,
+    observacoes: "",
+    foto: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<ExecucaoStatus | "all">("all");
 
   useEffect(() => {
-    fetchAll();
+    loadExecucoes();
   }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (selectedExecucaoId) {
+      loadExecucaoContext(selectedExecucaoId);
+    } else {
+      setExecucaoItems([]);
+      setExecucaoResposta(null);
+    }
+  }, [selectedExecucaoId]);
+
+  const loadExecucoes = async () => {
     try {
-      await Promise.all([fetchRespostas(), fetchExecucoes(), fetchItens()]);
+      const { data, error } = await supabase
+        .from("execucao_checklist")
+        .select(
+          `
+          *,
+          checklist:checklist ( id, nome ),
+          supervisor:profiles ( id, full_name )
+        `
+        )
+        .order("data_prevista", { ascending: false });
+
+      if (error) throw error;
+      setExecucoes((data as ExecucaoWithRelations[]) ?? []);
+    } catch (error) {
+      console.error("Erro ao carregar execuções:", error);
+      toast.error("Não foi possível carregar as execuções.");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchRespostas = async () => {
-    const { data, error } = await supabase
-      .from("checklist_respostas")
-      .select(
-        `
-        id,
-        execucao_id,
-        item_id,
-        resposta,
-        conforme,
-        foto_url,
-        observacao,
-        created_at,
-        execucao:checklist_execucoes (
-          id,
-          data_execucao,
-          status,
-          checklist:checklists ( nome ),
-          colaborador:colaboradores ( id, nome_completo )
-        ),
-        item:checklist_itens ( descricao )
-      `
-      )
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Erro ao carregar respostas");
-      return;
-    }
-
-    setRespostas((data as ChecklistRespostaWithRelations[]) ?? []);
-  };
-
-  const fetchExecucoes = async () => {
-    const { data, error } = await supabase
-      .from("checklist_execucoes")
-      .select(
-        `
-        id,
-        checklist_id,
-        data_execucao,
-        status,
-        checklist:checklists ( nome ),
-        colaborador:colaboradores ( id, nome_completo )
-      `
-      )
-      .order("data_execucao", { ascending: false });
-    if (error) {
-      toast.error("Erro ao carregar execuÃ§Ãµes");
-      return;
-    }
-    setExecucoes((data as ChecklistExecucaoWithRelations[]) ?? []);
-  };
-
-  const fetchItens = async () => {
-    const { data, error } = await supabase
-      .from("checklist_itens")
-      .select("id, descricao, checklist_id")
-      .order("descricao");
-    if (error) {
-      toast.error("Erro ao carregar itens");
-      return;
-    }
-    setItens(data ?? []);
-  };
-
-  const filteredRespostas = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    return respostas.filter(
-      (resposta) =>
-        resposta.item?.descricao?.toLowerCase().includes(term) ||
-        resposta.execucao?.checklist?.nome?.toLowerCase().includes(term) ||
-        resposta.execucao?.colaborador?.nome_completo
-          ?.toLowerCase()
-          .includes(term) ||
-        resposta.resposta?.toLowerCase().includes(term)
-    );
-  }, [respostas, searchTerm]);
-
-  const resetForm = () => {
-    setFormData(initialForm);
-    setEditingId(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.execucao_id) {
-      toast.warning("Selecione uma execução");
-      return;
-    }
-
-    const execucaoSelecionada = execucoes.find(
-      (execucao) => execucao.id === formData.execucao_id
-    );
-
-    if (execucaoSelecionada?.status === "concluido") {
-      toast.warning(
-        "Esta execução já está concluída. Edite a execução e altere o status para registrar novas respostas."
-      );
-      return;
-    }
-
-    setSaving(true);
-
-    const payload: ChecklistRespostaInsert = {
-      execucao_id: formData.execucao_id,
-      item_id: formData.item_id || null,
-      resposta: formData.resposta.trim() || null,
-      conforme:
-        formData.conforme === "null" ? null : formData.conforme === "true",
-      foto_url: formData.foto_url.trim() || null,
-      observacao: formData.observacao.trim() || null,
-      created_at: formData.created_at
-        ? new Date(formData.created_at).toISOString()
-        : undefined,
-    };
-
+  const loadExecucaoContext = async (execucaoId: string) => {
     try {
-      if (editingId) {
-        const { error } = await supabase
-          .from("checklist_respostas")
-          .update(payload)
-          .eq("id", editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("checklist_respostas")
-          .insert(payload);
-        if (error) throw error;
+      setContextLoading(true);
+      const { data: itensData, error: itensError } = await supabase
+        .from("execucao_checklist_item")
+        .select(
+          `
+          *,
+          checklist_item:checklist_item ( id, descricao, ordem )
+        `
+        )
+        .eq("execucao_checklist_id", execucaoId)
+        .order("ordem", { foreignTable: "checklist_item", ascending: true });
+
+      if (itensError) throw itensError;
+
+      const itemIds = (itensData ?? []).map((item) => item.id);
+      let respostasItens: RespostaItemRow[] = [];
+
+      if (itemIds.length > 0) {
+        const { data: respData, error: respError } = await supabase
+          .from("resposta_execucao_checklist_item")
+          .select("*")
+          .in("execucao_checklist_item_id", itemIds);
+
+        if (respError) throw respError;
+        respostasItens = respData as RespostaItemRow[];
       }
 
-      toast.success(
-        `Resposta ${editingId ? "atualizada" : "registrada"} com sucesso!`
+      const respostaMap = new Map(respostasItens.map((resp) => [resp.execucao_checklist_item_id, resp]));
+      setExecucaoItems(
+        (itensData as ExecucaoItemWithDetails[])?.map((item) => ({
+          ...item,
+          resposta: respostaMap.get(item.id) ?? null,
+        })) ?? []
       );
-      resetForm();
-      fetchRespostas();
+
+      setItemResponses((prev) => {
+        const next = { ...prev };
+        (itensData || []).forEach((item) => {
+          const existing = respostaMap.get(item.id);
+          next[item.id] = {
+            resposta: existing?.resposta ?? "",
+            conforme: existing?.conforme ?? true,
+            observacoes: existing?.observacoes ?? "",
+            foto: existing?.foto ?? "",
+          };
+        });
+        return next;
+      });
+
+      const { data: respExec, error: respExecError } = await supabase
+        .from("resposta_execucao_checklist")
+        .select("*")
+        .eq("execucao_checklist_id", execucaoId)
+        .order("registrado_em", { ascending: false })
+        .limit(1);
+
+      if (respExecError) throw respExecError;
+      setExecucaoResposta((respExec?.[0] as RespostaExecucaoRow) ?? null);
     } catch (error) {
-      console.error(error);
-      toast.error("Erro ao salvar resposta");
+      console.error("Erro ao carregar detalhes da execução:", error);
+      toast.error("Não foi possível carregar os detalhes da execução selecionada.");
     } finally {
-      setSaving(false);
+      setContextLoading(false);
     }
-  };
-  const handleEdit = (resposta: ChecklistRespostaWithRelations) => {
-    setEditingId(resposta.id);
-    setFormData({
-      execucao_id: resposta.execucao_id ?? "",
-      item_id: resposta.item_id ?? "",
-      resposta: resposta.resposta ?? "",
-      conforme:
-        resposta.conforme === null
-          ? "null"
-          : resposta.conforme
-          ? "true"
-          : "false",
-      foto_url: resposta.foto_url ?? "",
-      observacao: resposta.observacao ?? "",
-      created_at: resposta.created_at
-        ? new Date(resposta.created_at).toISOString().slice(0, 16)
-        : "",
-    });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Deseja realmente excluir esta resposta?")) return;
-    const { error } = await supabase
-      .from("checklist_respostas")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      toast.error("Erro ao excluir resposta");
+  const handleExecucaoResponse = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedExecucaoId) {
+      toast.error("Selecione uma execução.");
       return;
     }
-    toast.success("Resposta excluída");
-    fetchRespostas();
+    if (!execucaoResponseForm.resposta) {
+      toast.error("Descreva a resposta da execução.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("resposta_execucao_checklist").insert({
+        execucao_checklist_id: selectedExecucaoId,
+        resposta: execucaoResponseForm.resposta,
+        conforme: execucaoResponseForm.conforme,
+        observacoes: execucaoResponseForm.observacoes || null,
+        foto: execucaoResponseForm.foto || null,
+      });
+
+      if (error) throw error;
+      toast.success("Resposta registrada.");
+      await loadExecucaoContext(selectedExecucaoId);
+    } catch (error) {
+      console.error("Erro ao registrar resposta:", error);
+      toast.error("Não foi possível registrar a resposta.");
+    }
   };
+
+  const handleItemResponse = async (itemId: string) => {
+    if (!selectedExecucaoId) {
+      toast.error("Selecione uma execução.");
+      return;
+    }
+
+    const form = itemResponses[itemId];
+    if (!form || !form.resposta) {
+      toast.error("Informe a resposta do item.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("resposta_execucao_checklist_item").insert({
+        execucao_checklist_item_id: itemId,
+        resposta: form.resposta,
+        conforme: form.conforme,
+        observacoes: form.observacoes || null,
+        foto: form.foto || null,
+      });
+      if (error) throw error;
+      toast.success("Resposta do item registrada.");
+      await loadExecucaoContext(selectedExecucaoId);
+    } catch (error) {
+      console.error("Erro ao responder item:", error);
+      toast.error("Não foi possível registrar a resposta do item.");
+    }
+  };
+
+  const filteredExecucoes = useMemo(
+    () =>
+      execucoes
+        .filter((execucao) => selectableExecutionStatuses.includes(execucao.status))
+        .filter((execucao) => (statusFilter === "all" ? true : execucao.status === statusFilter)),
+    [execucoes, statusFilter]
+  );
+
+  useEffect(() => {
+    if (selectedExecucaoId && !filteredExecucoes.some((execucao) => execucao.id === selectedExecucaoId)) {
+      setSelectedExecucaoId("");
+    }
+  }, [filteredExecucoes, selectedExecucaoId]);
+
+  const selectedExecucao = filteredExecucoes.find((execucao) => execucao.id === selectedExecucaoId);
+
+  const badgeVariant = (status: ExecucaoStatus) => {
+    if (status === "concluido") return "default";
+    if (status === "cancelado") return "secondary";
+    if (status === "atrasado") return "destructive";
+    return "outline";
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Responder Checklist</h1>
+            <h1 className="text-3xl font-bold">Respostas de checklist</h1>
+            <p className="text-muted-foreground">
+              Registre respostas das execuções e acompanhe o progresso item a item.
+            </p>
           </div>
-          <Button variant="outline" onClick={fetchAll} disabled={loading}>
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Select
+              value={statusFilter}
+              onValueChange={(value: ExecucaoStatus | "all") => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Filtrar status" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="all">Todas</SelectItem>
+                {selectableExecutionStatuses.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {statusLabels[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={loadExecucoes}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>
-              {editingId ? "Editar resposta" : "Registrar resposta"}
-            </CardTitle>
+            <CardTitle>Selecione a execução</CardTitle>
+            <CardDescription>Escolha uma execução para responder e ver o progresso.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form
-              onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              {editingId && (
-                <div className="space-y-2">
-                  <Label>ID (somente leitura)</Label>
-                  <Input value={editingId} disabled />
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>Execução *</Label>
-                <Select
-                  value={formData.execucao_id}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, execucao_id: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {execucoes.map((execucao) => (
-                      <SelectItem key={execucao.id} value={execucao.id}>
-                        {execucao.checklist?.nome ?? execucao.id} -{" "}
-                        {execucao.data_execucao
-                          ? new Date(execucao.data_execucao).toLocaleString(
-                              "pt-BR"
-                            )
-                          : "Sem data"}{" "}
-                        -{" "}
-                        {execucao.colaborador?.nome_completo ??
-                          "Sem responsável"}{" "}
-                        - Status:{" "}
-                        {execucao.status
-                          ? execucao.status.replace("_", " ")
-                          : "sem status"}
-                      </SelectItem>
-                    ))}
-                    {execucoes.length === 0 && (
-                      <SelectItem value="__placeholder" disabled>
-                        Cadastre uma execução primeiro
-                      </SelectItem>
+          <CardContent className="space-y-4">
+            <Select value={selectedExecucaoId} onValueChange={(value) => setSelectedExecucaoId(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a execução" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {filteredExecucoes.map((execucao) => (
+                  <SelectItem key={execucao.id} value={execucao.id}>
+                    {execucao.checklist?.nome || execucao.id} -{" "}
+                    {execucao.data_prevista
+                      ? format(new Date(execucao.data_prevista), "dd/MM/yyyy", { locale: ptBR })
+                      : "Sem data"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedExecucao && (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Card>
+                  <CardHeader className="space-y-1">
+                    <CardTitle className="flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5" />
+                      {selectedExecucao.checklist?.nome || "Checklist"}
+                    </CardTitle>
+                    <CardDescription>Dados básicos da execução</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Status:</span>
+                      <Badge variant={badgeVariant(selectedExecucao.status)} className="capitalize">
+                        {statusLabels[selectedExecucao.status]}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Data prevista:</span>
+                      <span>
+                        {selectedExecucao.data_prevista
+                          ? format(new Date(selectedExecucao.data_prevista), "dd/MM/yyyy", { locale: ptBR })
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Finalizado em:</span>
+                      <span>
+                        {selectedExecucao.finalizado_em
+                          ? format(new Date(selectedExecucao.finalizado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Supervisor:</span>
+                      <span>{selectedExecucao.supervisor?.full_name || "-"}</span>
+                    </div>
+                    {execucaoResposta && (
+                      <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={execucaoResposta.conforme ? "default" : "destructive"}>
+                            {execucaoResposta.conforme ? "Conforme" : "Não conforme"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {execucaoResposta.registrado_em
+                              ? format(new Date(execucaoResposta.registrado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                              : ""}
+                          </span>
+                        </div>
+                        <p className="text-sm">{execucaoResposta.resposta}</p>
+                        {execucaoResposta.observacoes && (
+                          <p className="text-xs text-muted-foreground">{execucaoResposta.observacoes}</p>
+                        )}
+                      </div>
                     )}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Não é possível registrar respostas em execuções concluídas.
-                  Edite a execução e altere o status para responder novamente.
-                </p>
-              </div>
+                  </CardContent>
+                </Card>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label>Resposta</Label>
-                <Textarea
-                  value={formData.resposta}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      resposta: e.target.value,
-                    }))
-                  }
-                  placeholder="Conteúdo da resposta"
-                />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Resposta da execução</CardTitle>
+                    <CardDescription>Registro geral (opcional) da execução.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form className="space-y-3" onSubmit={handleExecucaoResponse}>
+                      <div className="space-y-2">
+                        <Label>Resposta</Label>
+                        <Textarea
+                          value={execucaoResponseForm.resposta}
+                          onChange={(e) =>
+                            setExecucaoResponseForm((prev) => ({ ...prev, resposta: e.target.value }))
+                          }
+                          placeholder="Resumo da execução, observações gerais..."
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Conformidade</Label>
+                          <Select
+                            value={execucaoResponseForm.conforme ? "true" : "false"}
+                            onValueChange={(value) =>
+                              setExecucaoResponseForm((prev) => ({ ...prev, conforme: value === "true" }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover">
+                              <SelectItem value="true">Conforme</SelectItem>
+                              <SelectItem value="false">Não conforme</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Foto (URL)</Label>
+                          <Input
+                            value={execucaoResponseForm.foto}
+                            onChange={(e) =>
+                              setExecucaoResponseForm((prev) => ({ ...prev, foto: e.target.value }))
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Observações</Label>
+                        <Textarea
+                          value={execucaoResponseForm.observacoes}
+                          onChange={(e) =>
+                            setExecucaoResponseForm((prev) => ({ ...prev, observacoes: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <Button type="submit" disabled={contextLoading}>
+                        <Send className="h-4 w-4 mr-2" />
+                        Registrar resposta
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
               </div>
-
-              <div className="space-y-2">
-                <Label>Conforme?</Label>
-                <Select
-                  value={formData.conforme}
-                  onValueChange={(value: ChecklistRespostaForm["conforme"]) =>
-                    setFormData((prev) => ({ ...prev, conforme: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="null">Não informado</SelectItem>
-                    <SelectItem value="true">Sim</SelectItem>
-                    <SelectItem value="false">NÃ£o</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Data de criação</Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.created_at}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      created_at: e.target.value,
-                    }))
-                  }
-                  placeholder="Opcional"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label>Observação</Label>
-                <Textarea
-                  value={formData.observacao}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      observacao: e.target.value,
-                    }))
-                  }
-                  placeholder="Observações adicionais"
-                />
-              </div>
-
-              <div className="flex gap-2 md:col-span-2">
-                <Button type="submit" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Save className="h-4 w-4 mr-2 animate-spin" />
-                      Salvando
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {editingId ? "Atualizar" : "Cadastrar"}
-                    </>
-                  )}
-                </Button>
-                {editingId && (
-                  <Button type="button" variant="secondary" onClick={resetForm}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancelar
-                  </Button>
-                )}
-              </div>
-            </form>
+            )}
           </CardContent>
         </Card>
-      </div>
 
-      <Dialog
-        open={!!selectedResposta}
-        onOpenChange={() => setSelectedResposta(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes da resposta</DialogTitle>
-          </DialogHeader>
-          {selectedResposta && (
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <div>
-                <span className="font-medium text-foreground">ID:</span>{" "}
-                {selectedResposta.id}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Checklist:</span>{" "}
-                {selectedResposta.execucao?.checklist?.nome ?? "Não informado"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Execução:</span>{" "}
-                {selectedResposta.execucao?.id}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">
-                  Responsável:
-                </span>{" "}
-                {selectedResposta.execucao?.colaborador?.nome_completo ??
-                  "Não informado"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Item:</span>{" "}
-                {selectedResposta.item?.descricao ?? "Sem item vinculado"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Resposta:</span>{" "}
-                {selectedResposta.resposta || "Sem resposta"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Conforme:</span>{" "}
-                {selectedResposta.conforme === null
-                  ? "Não informado"
-                  : selectedResposta.conforme
-                  ? "Conforme"
-                  : "Não conforme"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">Observação:</span>{" "}
-                {selectedResposta.observacao || "Sem observações"}
-              </div>
-              <div>
-                <span className="font-medium text-foreground">
-                  Registrada em:
-                </span>{" "}
-                {selectedResposta.created_at
-                  ? new Date(selectedResposta.created_at).toLocaleString(
-                      "pt-BR"
-                    )
-                  : "-"}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        {selectedExecucao && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Itens da execução</CardTitle>
+              <CardDescription>Responda cada item e acompanhe o status individual.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ordem</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Resposta</TableHead>
+                    <TableHead className="text-right">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {execucaoItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.checklist_item?.ordem ?? "-"}</TableCell>
+                      <TableCell className="font-medium">{item.checklist_item?.descricao || "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant={badgeVariant(item.status)} className="capitalize">
+                          {statusLabels[item.status]}
+                        </Badge>
+                        {item.resposta && (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Registrado em{" "}
+                            {item.resposta.registrado_em
+                              ? format(new Date(item.resposta.registrado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                              : "-"}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Resposta"
+                            value={itemResponses[item.id]?.resposta || ""}
+                            onChange={(e) =>
+                              setItemResponses((prev) => ({
+                                ...prev,
+                                [item.id]: { ...(prev[item.id] || defaultItemForm), resposta: e.target.value },
+                              }))
+                            }
+                          />
+                          <Select
+                            value={itemResponses[item.id]?.conforme ? "true" : "false"}
+                            onValueChange={(value) =>
+                              setItemResponses((prev) => ({
+                                ...prev,
+                                [item.id]: { ...(prev[item.id] || defaultItemForm), conforme: value === "true" },
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Conformidade" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover">
+                              <SelectItem value="true">Conforme</SelectItem>
+                              <SelectItem value="false">Não conforme</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            placeholder="Observações"
+                            value={itemResponses[item.id]?.observacoes || ""}
+                            onChange={(e) =>
+                              setItemResponses((prev) => ({
+                                ...prev,
+                                [item.id]: { ...(prev[item.id] || defaultItemForm), observacoes: e.target.value },
+                              }))
+                            }
+                          />
+                          <Input
+                            placeholder="Foto (URL)"
+                            value={itemResponses[item.id]?.foto || ""}
+                            onChange={(e) =>
+                              setItemResponses((prev) => ({
+                                ...prev,
+                                [item.id]: { ...(prev[item.id] || defaultItemForm), foto: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" onClick={() => handleItemResponse(item.id)} disabled={contextLoading}>
+                          <Send className="h-4 w-4 mr-2" />
+                          Enviar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {execucaoItems.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        Nenhum item encontrado para esta execução.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </DashboardLayout>
   );
+};
+
+const defaultItemForm: ItemRespostaForm = {
+  resposta: "",
+  conforme: true,
+  observacoes: "",
+  foto: "",
 };
 
 export default ChecklistRespostas;

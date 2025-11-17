@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+﻿import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import {
   Card,
   CardContent,
@@ -73,15 +74,15 @@ interface Alerta {
 
 interface ChecklistExecucaoResumo {
   id: string;
-  checklist_id: number | null;
-  data_execucao: string | null;
-  status: string | null;
-  observacoes: string | null;
+  checklist_id: string;
+  data_prevista: string;
+  status: Database["public"]["Enums"]["status_execucao"];
+  finalizado_em: string | null;
   checklist: {
     nome: string | null;
   } | null;
-  colaborador: {
-    nome_completo: string | null;
+  supervisor: {
+    full_name: string | null;
   } | null;
 }
 
@@ -477,19 +478,20 @@ export default function Dashboard24h() {
   const loadChecklistExecucoes = async () => {
     try {
       const { data, error } = await supabase
-        .from("checklist_execucoes")
+        .from("execucao_checklist")
         .select(
           `
           id,
           checklist_id,
-          data_execucao,
+          data_prevista,
           status,
-          observacoes,
-          checklist:checklists ( nome ),
-          colaborador:colaboradores ( nome_completo )
+          finalizado_em,
+          checklist:checklist ( nome ),
+          supervisor:profiles ( full_name )
         `
         )
-        .order("data_execucao", { ascending: false });
+        .order("data_prevista", { ascending: false })
+        .limit(5);
 
       if (error) throw error;
       setChecklistExecucoes((data as ChecklistExecucaoResumo[]) || []);
@@ -587,7 +589,7 @@ export default function Dashboard24h() {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [-47.9292, -15.7801], // Brasília center
+        center: [-47.9292, -15.7801], // BrasÃ­lia center
         zoom: 4,
       });
 
@@ -628,7 +630,7 @@ export default function Dashboard24h() {
               <p style="font-size: 12px; margin-bottom: 4px;">Postos Preenchidos: <strong>${
                 unidade.postos_preenchidos
               }/${unidade.total_postos}</strong></p>
-              <p style="font-size: 12px;">Taxa de Ocupação: <strong style="color: ${
+              <p style="font-size: 12px;">Taxa de OcupaÃ§Ã£o: <strong style="color: ${
                 unidade.porcentagem_ocupacao >= 90
                   ? "#22c55e"
                   : unidade.porcentagem_ocupacao >= 70
@@ -671,11 +673,12 @@ export default function Dashboard24h() {
   };
 
   const getChecklistStatusVariant = (
-    status: string | null
-  ): "default" | "secondary" | "outline" => {
+    status: Database["public"]["Enums"]["status_execucao"]
+  ): "default" | "secondary" | "outline" | "destructive" => {
     if (status === "concluido") return "default";
-    if (status === "em_andamento") return "secondary";
-    return "outline";
+    if (status === "atrasado") return "destructive";
+    if (status === "cancelado") return "outline";
+    return "secondary";
   };
 
   if (loading) {
@@ -698,7 +701,7 @@ export default function Dashboard24h() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">
-              Dashboard 24/7 – Resumo Executivo
+              Dashboard 24/7 â€“ Resumo Executivo
             </h1>
             <p className="text-muted-foreground">Monitoramento em tempo real</p>
           </div>
@@ -721,12 +724,12 @@ export default function Dashboard24h() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
-                Incidentes por Severidade (Disponível em breve!)
+                Incidentes por Severidade (DisponÃ­vel em breve!)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm">Crítico</span>
+                <span className="text-sm">CrÃ­tico</span>
                 <Badge variant="destructive">{stats.incidentes_critico}</Badge>
               </div>
               <div className="flex items-center justify-between">
@@ -734,7 +737,7 @@ export default function Dashboard24h() {
                 <Badge variant="destructive">{stats.incidentes_alto}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Médio</span>
+                <span className="text-sm">MÃ©dio</span>
                 <Badge variant="secondary">{stats.incidentes_medio}</Badge>
               </div>
             </CardContent>
@@ -757,7 +760,7 @@ export default function Dashboard24h() {
                 <Badge variant="destructive">{stats.chamados_alto}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Média</span>
+                <span className="text-sm">MÃ©dia</span>
                 <Badge variant="secondary">{stats.chamados_medio}</Badge>
               </div>
             </CardContent>
@@ -770,51 +773,45 @@ export default function Dashboard24h() {
           <Card className="h-[500px]">
             <CardHeader>
               <CardTitle>Feed de Alertas ao Vivo</CardTitle>
-              <CardDescription>Atualizações em tempo real</CardDescription>
+              <CardDescription>AtualizaÃ§Ãµes em tempo real</CardDescription>
             </CardHeader>
-            <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
-              {alertas.map((alerta) => (
-                <div
-                  key={alerta.id}
-                  className={`p-3 rounded-lg border ${
-                    alerta.severidade === "critica" ||
-                    alerta.severidade === "urgente"
-                      ? "bg-red-50 border-red-200"
-                      : alerta.severidade === "alta"
-                      ? "bg-yellow-50 border-yellow-200"
-                      : "bg-background border-border"
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge
-                      variant={getSeveridadeColor(alerta.severidade) as any}
-                    >
-                      {alerta.tipo}
+                        <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
+              {checklistExecucoes.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma execução de checklist cadastrada até o momento.
+                </p>
+              )}
+              {checklistExecucoes.map((execucao) => (
+                <div key={execucao.id} className="p-3 rounded-lg border bg-background space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {execucao.checklist?.nome || `Checklist ${execucao.checklist_id ?? "-"}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {execucao.supervisor?.full_name
+                          ? `Supervisor: ${execucao.supervisor.full_name}`
+                          : "Supervisor nao informado"}
+                      </p>
+                    </div>
+                    <Badge variant={getChecklistStatusVariant(execucao.status)} className="capitalize">
+                      {execucao.status}
                     </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(alerta.timestamp).toLocaleTimeString("pt-BR")}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Previsto:{" "}
+                      {execucao.data_prevista
+                        ? new Date(execucao.data_prevista).toLocaleDateString("pt-BR")
+                        : "-"}
+                    </span>
+                    <span>
+                      Finalizado:{" "}
+                      {execucao.finalizado_em
+                        ? new Date(execucao.finalizado_em).toLocaleString("pt-BR")
+                        : "-"}
                     </span>
                   </div>
-                  <p className="text-sm font-medium mb-1">{alerta.descricao}</p>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <div>
-                      <strong>Cliente:</strong> {alerta.cliente}
-                    </div>
-                    <div>
-                      <strong>Unidade:</strong> {alerta.unidade}
-                    </div>
-                    <div>
-                      <strong>Status:</strong> {alerta.status}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full mt-2"
-                    onClick={() => navigate("/chamados")}
-                  >
-                    Ver Detalhes
-                  </Button>
                 </div>
               ))}
             </CardContent>
@@ -822,58 +819,48 @@ export default function Dashboard24h() {
 
           <Card className="h-[500px]">
             <CardHeader>
-              <CardTitle>Execução de Checklists</CardTitle>
+              <CardTitle>ExecuÃ§Ã£o de Checklists</CardTitle>
               <CardDescription>
-                Acompanhamento das execuções registradas
+                Acompanhamento das execuÃ§Ãµes registradas
               </CardDescription>
             </CardHeader>
-            <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
+                        <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
               {checklistExecucoes.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   Nenhuma execução de checklist cadastrada até o momento.
                 </p>
               )}
               {checklistExecucoes.map((execucao) => (
-                <div
-                  key={execucao.id}
-                  className="p-3 rounded-lg border bg-background space-y-2"
-                >
+                <div key={execucao.id} className="p-3 rounded-lg border bg-background space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold">
-                        {execucao.checklist?.nome ||
-                          `Checklist ${execucao.checklist_id ?? "-"}`}
+                        {execucao.checklist?.nome || `Checklist ${execucao.checklist_id ?? "-"}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {execucao.colaborador?.nome_completo
-                          ? `Responsável: ${execucao.colaborador.nome_completo}`
-                          : "Responsável não informado"}
+                        {execucao.supervisor?.full_name
+                          ? `Supervisor: ${execucao.supervisor.full_name}`
+                          : "Supervisor nao informado"}
                       </p>
                     </div>
-                    <Badge
-                      variant={getChecklistStatusVariant(execucao.status)}
-                      className="capitalize"
-                    >
-                      {execucao.status
-                        ? execucao.status.replace("_", " ")
-                        : "sem status"}
+                    <Badge variant={getChecklistStatusVariant(execucao.status)} className="capitalize">
+                      {execucao.status}
                     </Badge>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>
-                      Execução:{" "}
-                      {execucao.data_execucao
-                        ? new Date(execucao.data_execucao).toLocaleString(
-                            "pt-BR"
-                          )
+                      Previsto:{" "}
+                      {execucao.data_prevista
+                        ? new Date(execucao.data_prevista).toLocaleDateString("pt-BR")
+                        : "-"}
+                    </span>
+                    <span>
+                      Finalizado:{" "}
+                      {execucao.finalizado_em
+                        ? new Date(execucao.finalizado_em).toLocaleString("pt-BR")
                         : "-"}
                     </span>
                   </div>
-                  {execucao.observacoes && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      Observações: {execucao.observacoes}
-                    </p>
-                  )}
                 </div>
               ))}
             </CardContent>
@@ -883,7 +870,7 @@ export default function Dashboard24h() {
                 variant="outline"
                 onClick={() => navigate("/checklist-execucoes")}
               >
-                Gerenciar execuções
+                Gerenciar execuÃ§Ãµes
               </Button>
             </div>
           </Card>
@@ -892,3 +879,9 @@ export default function Dashboard24h() {
     </DashboardLayout>
   );
 }
+
+
+
+
+
+

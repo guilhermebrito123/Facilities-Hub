@@ -264,102 +264,137 @@ export function ChamadoForm({ open, onOpenChange, chamado, onSuccess }: ChamadoF
     }
   }, [chamado, form]);
 
-  const onSubmit = async (data: ChamadoFormValues) => {
-    setIsSubmitting(true);
-    try {
-      const chamadoData: any = {
-        titulo: data.titulo,
-        descricao: data.descricao || null,
-        tipo: data.tipo,
-        categoria: data.categoria,
-        subcategoria: data.subcategoria || null,
-        prioridade: data.prioridade,
-        status: data.status,
-        unidade_id: data.unidade_id,
-        posto_servico_id: data.posto_servico_id || null,
-        contrato_id: data.contrato_id || null,
-        sla_horas: data.sla_horas,
-        canal: data.canal,
-        numero: chamado?.numero || `CH-${Date.now()}`,
-      };
+const onSubmit = async (data: ChamadoFormValues) => {
+  setIsSubmitting(true);
+  try {
+    const chamadoData: any = {
+      titulo: data.titulo,
+      descricao: data.descricao || null,
+      tipo: data.tipo,
+      categoria: data.categoria,
+      subcategoria: data.subcategoria || null,
+      prioridade: data.prioridade,
+      status: data.status,
+      unidade_id: data.unidade_id,
+      posto_servico_id: data.posto_servico_id || null,
+      contrato_id: data.contrato_id || null,
+      sla_horas: data.sla_horas,
+      canal: data.canal,
+      numero: chamado?.numero || `CH-${Date.now()}`,
+    };
 
-      let chamadoId = chamado?.id;
+    let chamadoId = chamado?.id;
 
-      if (chamado) {
-        const { error } = await supabase
-          .from("chamados")
-          .update(chamadoData)
-          .eq("id", chamado.id);
+    // Criação ou atualização do chamado
+    if (chamado) {
+      const { error } = await supabase
+        .from("chamados")
+        .update(chamadoData)
+        .eq("id", chamado.id);
 
-        if (error) throw error;
-        toast({ title: "Chamado atualizado com sucesso!" });
-      } else {
-        const { data: newChamado, error } = await supabase
-          .from("chamados")
-          .insert([chamadoData])
-          .select()
-          .single();
+      if (error) throw error;
+      toast({ title: "Chamado atualizado com sucesso!" });
+    } else {
+      const { data: newChamado, error } = await supabase
+        .from("chamados")
+        .insert([chamadoData])
+        .select()
+        .single();
 
-        if (error) throw error;
-        chamadoId = newChamado.id;
-        toast({ title: "Chamado criado com sucesso!" });
+      if (error) throw error;
+      chamadoId = newChamado.id;
+      toast({ title: "Chamado criado com sucesso!" });
+    }
+
+    // 👉 Upload de arquivos no Supabase Storage
+    if (uploadedFiles.length > 0 && chamadoId) {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("Não foi possível identificar o usuário para salvar os anexos.");
       }
 
-      // Upload de arquivos se houver
-      if (uploadedFiles.length > 0 && chamadoId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          for (const file of uploadedFiles) {
-            const fileExtension = `.${file.name.split('.').pop()?.toLowerCase() || ""}`;
-            if (!ALLOWED_ATTACHMENT_EXTENSIONS.includes(fileExtension as typeof ALLOWED_ATTACHMENT_EXTENSIONS[number])) {
-              toast({
-                title: "Formato não permitido",
-                description: `O arquivo ${file.name} não está em um formato suportado.`,
-                variant: "destructive",
-              });
-              continue;
-            }
+      for (const file of uploadedFiles) {
+        const fileExtension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
 
-            const sanitizedFileName = file.name
-              .toLowerCase()
-              .replace(/[^\w.-]/g, "_");
-            const storagePath = `${chamadoId}/${Date.now()}-${sanitizedFileName}`;
-            
-            const { error: uploadError } = await supabase.storage
-              .from('chamados-anexos')
-              .upload(storagePath, file);
+        if (
+          !ALLOWED_ATTACHMENT_EXTENSIONS.includes(
+            fileExtension as (typeof ALLOWED_ATTACHMENT_EXTENSIONS)[number]
+          )
+        ) {
+          toast({
+            title: "Formato não permitido",
+            description: `O arquivo ${file.name} não está em um formato suportado.`,
+            variant: "destructive",
+          });
+          continue;
+        }
 
-            if (uploadError) {
-              console.error('Erro ao fazer upload:', uploadError);
-              continue;
-            }
+        const sanitizedFileName = file.name
+          .toLowerCase()
+          .replace(/[^\w.-]/g, "_");
 
-            // Registrar anexo na tabela
-            await supabase.from('chamados_anexos').insert({
-              chamado_id: chamadoId,
-              usuario_id: user.id,
-              nome_arquivo: file.name,
-              caminho_storage: storagePath,
-              tipo_arquivo: file.type,
-              tamanho_bytes: file.size,
-            });
-          }
+        const storagePath = `${chamadoId}/${Date.now()}-${sanitizedFileName}`;
+
+        // Upload no bucket "chamados-anexos"
+        const { error: uploadError } = await supabase.storage
+          .from("chamados-anexos") // ⚠ certifica que esse é o nome do bucket no Storage
+          .upload(storagePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Erro ao fazer upload:", uploadError);
+          toast({
+            title: "Erro ao enviar anexo",
+            description: `Não foi possível enviar o arquivo ${file.name}.`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        // Registro do anexo na tabela chamados_anexos
+        const { error: insertError } = await supabase
+          .from("chamados_anexos")
+          .insert({
+            chamado_id: chamadoId,
+            usuario_id: user.id,
+            nome_arquivo: file.name,
+            caminho_storage: storagePath,
+            tipo_arquivo: file.type,
+            tamanho_bytes: file.size,
+          });
+
+        if (insertError) {
+          console.error("Erro ao registrar anexo:", insertError);
+          toast({
+            title: "Erro ao registrar anexo",
+            description: `O arquivo ${file.name} foi enviado, mas não foi registrado no banco.`,
+            variant: "destructive",
+          });
         }
       }
-
-      onSuccess();
-      form.reset();
-      setUploadedFiles([]);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao salvar chamado",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+
+    onSuccess();
+    form.reset();
+    setUploadedFiles([]);
+  } catch (error: any) {
+    console.error(error);
+    toast({
+      title: "Erro ao salvar chamado",
+      description: error.message ?? "Ocorreu um erro inesperado.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   const isAdmin = userRole === "admin";
 

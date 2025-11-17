@@ -299,7 +299,7 @@ export function GestaoCoberturaDialog({ open, onClose }: GestaoCoberturaDialogPr
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center gap-2">
+          <DialogTitle className="text-2xl flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             <AlertCircle className="h-6 w-6 text-orange-500" />
             Gestão de Cobertura
           </DialogTitle>
@@ -314,7 +314,7 @@ export function GestaoCoberturaDialog({ open, onClose }: GestaoCoberturaDialogPr
             <CardHeader>
               <CardTitle className="text-lg">Filtros</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium mb-2 block">Posto</label>
                 <Select value={filterPosto} onValueChange={setFilterPosto}>
@@ -367,7 +367,7 @@ export function GestaoCoberturaDialog({ open, onClose }: GestaoCoberturaDialogPr
                   {filteredPostosVagos.map((posto) => (
                     <Card key={posto.id} className="border-red-200">
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h4 className="font-semibold">{posto.nome}</h4>
@@ -413,7 +413,7 @@ export function GestaoCoberturaDialog({ open, onClose }: GestaoCoberturaDialogPr
                         <Users className="h-5 w-5 text-green-500" />
                         Reservas Técnicas Disponíveis ({colaboradoresReserva.length})
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {colaboradoresReserva.map((colab) => (
                           <Card key={colab.id} className="border-green-200">
                             <CardContent className="p-3">
@@ -532,7 +532,7 @@ export function GestaoCoberturaDialog({ open, onClose }: GestaoCoberturaDialogPr
                         <Users className="h-5 w-5 text-blue-500" />
                         Diaristas Disponíveis ({diaristas.length})
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {diaristas.map((diarista) => (
                           <Card key={diarista.id} className="border-blue-200">
                             <CardContent className="p-3">

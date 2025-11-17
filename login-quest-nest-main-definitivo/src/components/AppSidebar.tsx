@@ -43,6 +43,7 @@ const menuItems = [
   { title: "Ativos", url: "/ativos", icon: Package },
   { title: "Estoque", url: "/estoque", icon: Package },
   { title: "Checklists", url: "/checklists", icon: ClipboardCheck },
+  { title: "Itens de Checklist", url: "/checklist-itens", icon: ClipboardList },
   {
     title: "Execuções de Checklist",
     url: "/checklist-execucoes",
@@ -52,6 +53,11 @@ const menuItems = [
     title: "Responder Checklist",
     url: "/checklist-respostas",
     icon: ListOrdered,
+  },
+  {
+    title: "Respostas registradas",
+    url: "/checklist-respostas-lista",
+    icon: ListChecks,
   },
 ];
 

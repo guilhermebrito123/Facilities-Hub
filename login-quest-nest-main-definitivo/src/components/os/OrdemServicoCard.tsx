@@ -65,17 +65,17 @@ export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir }: OrdemServ
     <>
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm text-muted-foreground">{os.numero}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm text-muted-foreground hidden sm:inline">{os.numero}</span>
                 <Badge className={getTipoColor(os.tipo)}>{os.tipo}</Badge>
                 <Badge className={getPrioridadeColor(os.prioridade)}>{os.prioridade}</Badge>
                 <Badge className={getStatusColor(os.status)}>{os.status.replace("_", " ")}</Badge>
               </div>
               <h3 className="text-lg font-semibold">{os.titulo}</h3>
             </div>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               <Button variant="ghost" size="icon" onClick={() => setShowDetails(true)}>
                 <Eye className="h-4 w-4" />
               </Button>
@@ -101,34 +101,36 @@ export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir }: OrdemServ
           </div>
         </CardHeader>
         <CardContent>
-          {os.descricao && (
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{os.descricao}</p>
-          )}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            {os.unidade?.nome && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate">{os.unidade.nome}</span>
-              </div>
+          <div className="hidden sm:block">
+            {os.descricao && (
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{os.descricao}</p>
             )}
-            {os.responsavel?.full_name && (
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate">{os.responsavel.full_name}</span>
-              </div>
-            )}
-            {os.data_abertura && (
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span>{formatDate(os.data_abertura)}</span>
-              </div>
-            )}
-            {os.data_prevista && (
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>{formatDate(os.data_prevista)}</span>
-              </div>
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              {os.unidade?.nome && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="truncate">{os.unidade.nome}</span>
+                </div>
+              )}
+              {os.responsavel?.full_name && (
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="truncate">{os.responsavel.full_name}</span>
+                </div>
+              )}
+              {os.data_abertura && (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>{formatDate(os.data_abertura)}</span>
+                </div>
+              )}
+              {os.data_prevista && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>{formatDate(os.data_prevista)}</span>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

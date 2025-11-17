@@ -263,7 +263,7 @@ const Contratos = () => {
 
   const loadChecklistsCount = async () => {
     const { count, error } = await supabase
-      .from("checklists")
+      .from("checklist")
       .select("id", { count: "exact", head: true });
 
     if (error) throw error;
@@ -342,7 +342,7 @@ const Contratos = () => {
       {/* Header */}
       <header className="border-b bg-card shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-start">
             <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg">
               <Building2 className="h-6 w-6 text-primary-foreground" />
             </div>
@@ -361,59 +361,39 @@ const Contratos = () => {
         {/* Metrics Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Clientes
-                </CardTitle>
-                <Users className="h-4 w-4 text-primary" />
-              </div>
+            <CardHeader className="pb-3 text-center flex flex-col items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Clientes</CardTitle>
               <p className="text-2xl font-bold">{clientes.length}</p>
             </CardHeader>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Checklists Ativos
-                </CardTitle>
-                <ClipboardCheck className="h-4 w-4 text-emerald-600" />
-              </div>
+            <CardHeader className="pb-3 text-center flex flex-col items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Checklists Ativos</CardTitle>
               <p className="text-2xl font-bold text-emerald-600">{totalChecklists}</p>
             </CardHeader>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Inspeções Registradas
-                </CardTitle>
-                <CalendarCheck className="h-4 w-4 text-indigo-600" />
-              </div>
+            <CardHeader className="pb-3 text-center flex flex-col items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-indigo-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Inspeções Registradas</CardTitle>
               <p className="text-2xl font-bold text-indigo-600">{totalInspecoes}</p>
             </CardHeader>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Chamados: NPS Médio Geral 
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-              </div>
+            <CardHeader className="pb-3 text-center flex flex-col items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Chamados: NPS Médio Geral</CardTitle>
               <p className="text-2xl font-bold text-blue-600">
                 {npsMedio > 0 ? npsMedio.toFixed(1) : "0"}
               </p>
             </CardHeader>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  OS Abertas
-                </CardTitle>
-                <FileText className="h-4 w-4 text-orange-600" />
-              </div>
+            <CardHeader className="pb-3 text-center flex flex-col items-center gap-2">
+              <FileText className="h-5 w-5 text-orange-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">OS Abertas</CardTitle>
               <p className="text-2xl font-bold text-orange-600">{ordensAbertas}</p>
             </CardHeader>
           </Card>
@@ -486,8 +466,8 @@ const Contratos = () => {
 
           {/* Clientes Tab */}
           <TabsContent value="clientes" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="relative flex-1 w-full md:max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar cliente..."
@@ -496,7 +476,7 @@ const Contratos = () => {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={() => setShowClienteForm(true)}>
+              <Button className="w-full md:w-auto" onClick={() => setShowClienteForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Cliente
               </Button>
@@ -517,7 +497,7 @@ const Contratos = () => {
               />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredClientes.map((cliente) => (
                 <ClienteCard
                   key={cliente.id}
@@ -547,8 +527,8 @@ const Contratos = () => {
 
           {/* Contratos Tab */}
           <TabsContent value="contratos" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="relative flex-1 w-full md:max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar contrato..."
@@ -557,7 +537,7 @@ const Contratos = () => {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={() => setShowContratoForm(true)}>
+              <Button className="w-full md:w-auto" onClick={() => setShowContratoForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Contrato
               </Button>
@@ -579,7 +559,7 @@ const Contratos = () => {
               />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredContratos.map((contrato) => (
                 <ContratoCard
                   key={contrato.id}
@@ -610,8 +590,8 @@ const Contratos = () => {
 
           {/* Unidades Tab */}
           <TabsContent value="unidades" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="relative flex-1 w-full md:max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar unidade..."
@@ -620,7 +600,7 @@ const Contratos = () => {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={() => setShowUnidadeForm(true)}>
+              <Button className="w-full md:w-auto" onClick={() => setShowUnidadeForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Unidade
               </Button>
@@ -642,7 +622,7 @@ const Contratos = () => {
               />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredUnidades.map((unidade) => (
                 <UnidadeCard
                   key={unidade.id}
@@ -673,9 +653,9 @@ const Contratos = () => {
 
           {/* Postos Tab */}
           <TabsContent value="postos" className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 flex-1">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-2 flex-1">
+                <div className="relative flex-1 w-full lg:max-w-sm">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Buscar posto..."
@@ -686,7 +666,7 @@ const Contratos = () => {
                 </div>
                 {!selectedUnidade && (
                   <Select value={filterUnidadeId} onValueChange={setFilterUnidadeId}>
-                    <SelectTrigger className="w-[250px]">
+                    <SelectTrigger className="w-full lg:w-[250px]">
                       <SelectValue placeholder="Filtrar por unidade" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover z-50">
@@ -700,7 +680,7 @@ const Contratos = () => {
                   </Select>
                 )}
                 <Select value={filterOcupacao} onValueChange={setFilterOcupacao}>
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-full lg:w-[200px]">
                     <SelectValue placeholder="Filtrar por ocupação" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
@@ -710,7 +690,7 @@ const Contratos = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => setShowPostoForm(true)}>
+              <Button className="w-full lg:w-auto" onClick={() => setShowPostoForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Posto
               </Button>

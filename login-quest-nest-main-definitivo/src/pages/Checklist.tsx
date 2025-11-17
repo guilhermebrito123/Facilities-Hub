@@ -1,423 +1,302 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { Plus, Save, X, Edit, Trash2, RefreshCw } from "lucide-react";
 
-type ChecklistRow = Database["public"]["Tables"]["checklists"]["Row"];
-type ChecklistInsert = Database["public"]["Tables"]["checklists"]["Insert"];
-type UnidadeRow = Pick<
-  Database["public"]["Tables"]["unidades"]["Row"],
-  "id" | "nome"
->;
-
-const tipoOptions = ["diario", "semanal", "mensal", "pontual"] as const;
-const statusOptions = ["ativo", "inativo"] as const;
-type ChecklistTipo = (typeof tipoOptions)[number];
-type ChecklistStatus = (typeof statusOptions)[number];
+type Periodicidade = Database["public"]["Enums"]["periodicidade_type"];
+type ChecklistRow = Database["public"]["Tables"]["checklist"]["Row"];
+type ChecklistInsert = Database["public"]["Tables"]["checklist"]["Insert"];
+type ChecklistUpdate = Database["public"]["Tables"]["checklist"]["Update"];
 
 interface ChecklistForm {
   nome: string;
-  descricao: string;
-  tipo: ChecklistTipo;
-  unidade_id: string;
-  status: ChecklistStatus;
+  periodicidade: Periodicidade;
 }
 
-const initialForm: ChecklistForm = {
-  nome: "",
-  descricao: "",
-  tipo: "diario",
-  unidade_id: "",
-  status: "ativo",
-};
+const periodicidadeOptions: { value: Periodicidade; label: string }[] = [
+  { value: "diaria", label: "Diaria" },
+  { value: "semanal", label: "Semanal" },
+  { value: "quinzenal", label: "Quinzenal" },
+  { value: "mensal", label: "Mensal" },
+  { value: "trimestral", label: "Trimestral" },
+  { value: "semestral", label: "Semestral" },
+  { value: "anual", label: "Anual" },
+];
 
-const NONE_VALUE = "__none__";
+const initialFormData: ChecklistForm = {
+  nome: "",
+  periodicidade: "mensal",
+};
 
 const Checklist = () => {
   const [checklists, setChecklists] = useState<ChecklistRow[]>([]);
-  const [unidades, setUnidades] = useState<UnidadeRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<ChecklistForm>(initialForm);
-  const [editingId, setEditingId] = useState<ChecklistRow["id"] | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<ChecklistForm>(initialFormData);
 
-  const fetchChecklists = useCallback(async () => {
+  useEffect(() => {
+    void loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("checklists")
-        .select(
-          "id, nome, descricao, tipo, unidade_id, status, created_at, updated_at"
-        )
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setChecklists((data as ChecklistRow[]) ?? []);
+      await loadChecklists();
     } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível carregar os checklists");
+      console.error("Erro ao carregar dados do checklist:", error);
+      toast.error("Não foi possível carregar os checklists.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  const fetchUnidades = useCallback(async () => {
+  const loadChecklists = async () => {
     const { data, error } = await supabase
-      .from("unidades")
-      .select("id, nome")
-      .order("nome");
-    if (error) {
-      toast.error("Não foi possível carregar as unidades");
-      return;
-    }
-    setUnidades(data ?? []);
-  }, []);
+      .from("checklist")
+      .select(
+        `
+        id,
+        nome,
+        periodicidade,
+        created_at,
+        updated_at
+      `
+      )
+      .order("created_at", { ascending: false });
 
-  useEffect(() => {
-    fetchChecklists();
-    fetchUnidades();
-  }, [fetchChecklists, fetchUnidades]);
+    if (error) throw error;
+    setChecklists((data as ChecklistRow[]) ?? []);
+  };
 
-  const unidadeMap = useMemo(() => {
-    const map = new Map<string, string>();
-    unidades.forEach((unidade) => map.set(unidade.id, unidade.nome));
-    return map;
-  }, [unidades]);
+  const filteredChecklists = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return checklists.filter((checklist) => !term || checklist.nome.toLowerCase().includes(term));
+  }, [checklists, searchTerm]);
 
   const resetForm = () => {
-    setFormData(initialForm);
+    setFormData(initialFormData);
     setEditingId(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
     if (!formData.nome.trim()) {
-      toast.warning("Informe o nome do checklist");
+      toast.error("Informe o nome do checklist.");
       return;
     }
 
-    setSaving(true);
     const payload: ChecklistInsert = {
       nome: formData.nome.trim(),
-      descricao: formData.descricao.trim() || null,
-      tipo: formData.tipo,
-      unidade_id: formData.unidade_id || null,
-      status: formData.status || "ativo",
+      periodicidade: formData.periodicidade,
+    };
+
+    const updatePayload: ChecklistUpdate = {
+      ...payload,
+      updated_at: new Date().toISOString(),
     };
 
     try {
+      setSaving(true);
       if (editingId) {
-        const { error } = await supabase
-          .from("checklists")
-          .update(payload)
-          .eq("id", editingId);
+        const { error } = await supabase.from("checklist").update(updatePayload).eq("id", editingId);
         if (error) throw error;
+        toast.success("Checklist atualizado com sucesso.");
       } else {
-        const { error } = await supabase.from("checklists").insert(payload);
+        const { error } = await supabase.from("checklist").insert(payload);
         if (error) throw error;
+        toast.success("Checklist criado com sucesso.");
       }
-      toast.success(
-        `Checklist ${editingId ? "atualizado" : "criado"} com sucesso`
-      );
+      await loadChecklists();
       resetForm();
-      fetchChecklists();
     } catch (error) {
-      toast.error("Erro ao salvar checklist");
+      console.error("Erro ao salvar checklist:", error);
+      toast.error("Não foi possível salvar o checklist.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleEdit = (checklist: ChecklistRow) => {
-    setEditingId(checklist.id);
+  const handleEdit = (entry: ChecklistRow) => {
+    setEditingId(entry.id);
     setFormData({
-      nome: checklist.nome,
-      descricao: checklist.descricao ?? "",
-      tipo:
-        checklist.tipo && tipoOptions.includes(checklist.tipo as ChecklistTipo)
-          ? (checklist.tipo as ChecklistTipo)
-          : "diario",
-      unidade_id: checklist.unidade_id ?? "",
-      status:
-        checklist.status &&
-        statusOptions.includes(checklist.status as ChecklistStatus)
-          ? (checklist.status as ChecklistStatus)
-          : "ativo",
+      nome: entry.nome,
+      periodicidade: entry.periodicidade,
     });
   };
 
-  const handleDelete = async (id: ChecklistRow["id"]) => {
-    if (!confirm("Deseja realmente excluir este checklist?")) return;
-    const { error } = await supabase.from("checklists").delete().eq("id", id);
-    if (error) {
-      toast.error("Erro ao excluir checklist");
-      return;
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("checklist").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Checklist removido com sucesso.");
+      await loadChecklists();
+    } catch (error) {
+      console.error("Erro ao remover checklist:", error);
+      toast.error("Não foi possível remover o checklist.");
     }
-    toast.success("Checklist excluído");
-    fetchChecklists();
   };
+
+  const getPeriodicidadeLabel = (value: Periodicidade) =>
+    periodicidadeOptions.find((opt) => opt.value === value)?.label ?? value;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold">Checklists</h1>
-            <p className="text-muted-foreground">
-              Cadastre e acompanhe os modelos utilizados nas inspeções.
-            </p>
+            <p className="text-muted-foreground">Gerencie os checklists e suas periodicidades.</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={fetchChecklists}
-            disabled={loading}
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadInitialData}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Atualizar
+            </Button>
+            <Button onClick={resetForm}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo checklist
+            </Button>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {editingId ? "Editar checklist" : "Novo checklist"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              {editingId && (
-                <div className="space-y-2 md:col-span-2">
-                  <Label>ID</Label>
-                  <Input value={editingId} disabled />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle>{editingId ? "Editar checklist" : "Novo checklist"}</CardTitle>
+              <CardDescription>Cadastre o checklist conforme o schema atualizado.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                  <Label>Nome</Label>
+                  <Input
+                    required
+                    value={formData.nome}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))}
+                    placeholder="Inspecao semanal, checklist de limpeza..."
+                  />
                 </div>
-              )}
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="nome">Nome *</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, nome: e.target.value }))
-                  }
-                  placeholder="Ex: Checklist semanal de segurança"
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label>Periodicidade</Label>
+                  <Select
+                    value={formData.periodicidade}
+                    onValueChange={(value: Periodicidade) =>
+                      setFormData((prev) => ({ ...prev, periodicidade: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a periodicidade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {periodicidadeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <Textarea
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      descricao: e.target.value,
-                    }))
-                  }
-                  placeholder="Detalhe o objetivo do checklist"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo *</Label>
-                <Select
-                  value={formData.tipo}
-                  onValueChange={(value: ChecklistForm["tipo"]) =>
-                    setFormData((prev) => ({ ...prev, tipo: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tipoOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Unidade</Label>
-                <Select
-                  value={formData.unidade_id || NONE_VALUE}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      unidade_id: value === NONE_VALUE ? "" : value,
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Opcional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE_VALUE}>Sem unidade</SelectItem>
-                    {unidades.map((unidade) => (
-                      <SelectItem key={unidade.id} value={unidade.id}>
-                        {unidade.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: ChecklistForm["status"]) =>
-                    setFormData((prev) => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex gap-2 md:col-span-2">
-                <Button type="submit" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Save className="h-4 w-4 mr-2 animate-spin" />
-                      Salvando
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {editingId ? "Atualizar" : "Cadastrar"}
-                    </>
-                  )}
-                </Button>
-                {editingId && (
-                  <Button type="button" variant="secondary" onClick={resetForm}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancelar
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={saving}>
+                    {saving ? "Salvando..." : editingId ? "Atualizar" : "Cadastrar"}
                   </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                  {editingId && (
+                    <Button type="button" variant="secondary" onClick={resetForm}>
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Checklists cadastrados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead>Atualizado em</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {checklists.map((checklist) => (
-                  <TableRow key={checklist.id}>
-                    <TableCell>{checklist.nome}</TableCell>
-                    <TableCell>{checklist.tipo || "-"}</TableCell>
-                    <TableCell>
-                      {(checklist.unidade_id &&
-                        unidadeMap.get(checklist.unidade_id)) ??
-                        "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          checklist.status === "ativo" ? "default" : "secondary"
-                        }
-                      >
-                        {checklist.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {checklist.created_at
-                        ? new Date(checklist.created_at).toLocaleString("pt-BR")
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {checklist.updated_at
-                        ? new Date(checklist.updated_at).toLocaleString("pt-BR")
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleEdit(checklist)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDelete(checklist.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && checklists.length === 0 && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Checklists cadastrados</CardTitle>
+              <CardDescription>Filtros rápidos por nome.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <Input
+                  placeholder="Buscar por nome"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <div className="text-sm text-muted-foreground">
+                  {filteredChecklists.length} checklist(s) listado(s)
+                </div>
+              </div>
+
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="text-center text-sm text-muted-foreground"
-                    >
-                      Nenhum checklist cadastrado
-                    </TableCell>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Periodicidade</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredChecklists.map((checklist) => (
+                    <TableRow key={checklist.id}>
+                      <TableCell className="font-medium">{checklist.nome}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize">
+                          {getPeriodicidadeLabel(checklist.periodicidade)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {checklist.created_at
+                          ? format(new Date(checklist.created_at), "dd/MM/yyyy", { locale: ptBR })
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="icon" variant="ghost" onClick={() => handleEdit(checklist)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDelete(checklist.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredChecklists.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        Nenhum checklist cadastrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

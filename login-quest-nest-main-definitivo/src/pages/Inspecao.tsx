@@ -31,18 +31,18 @@ type InspecaoRow = Database["public"]["Tables"]["inspecoes"]["Row"];
 type InspecaoInsert = Database["public"]["Tables"]["inspecoes"]["Insert"];
 type UnidadeRow = Pick<Database["public"]["Tables"]["unidades"]["Row"], "id" | "nome">;
 type PostoRow = Pick<Database["public"]["Tables"]["postos_servico"]["Row"], "id" | "nome" | "unidade_id">;
-type ChecklistRow = Database["public"]["Tables"]["checklists"]["Row"];
+type ChecklistRow = Database["public"]["Tables"]["checklist"]["Row"];
 type ChecklistItemRow = Pick<
-  Database["public"]["Tables"]["checklist_itens"]["Row"],
+  Database["public"]["Tables"]["checklist_item"]["Row"],
   "id" | "descricao" | "checklist_id" | "ordem"
 >;
 
 type InspecaoChecklistRelation = {
-  checklist_id: number;
+  checklist_id: string;
   checklist: {
-    id: number;
+    id: string;
     nome: string;
-    periodicidade: number;
+    periodicidade: Database["public"]["Enums"]["periodicidade_type"];
   } | null;
 };
 
@@ -51,7 +51,7 @@ type InspecaoChecklistItemRelation = {
   checklist_item: {
     id: string;
     descricao: string;
-    checklist_id: number | null;
+    checklist_id: string | null;
   } | null;
 };
 
@@ -71,7 +71,7 @@ interface InspecaoForm {
   posto_id: string;
   dia_inspecao: string;
   responsavel: string;
-  checklistIds: number[];
+  checklistIds: string[];
   checklistItemIds: string[];
 }
 
@@ -99,7 +99,7 @@ const Inspecao = () => {
   const [saving, setSaving] = useState(false);
 
   const sanitizeChecklistItemSelection = useCallback(
-    (checklistIds: number[], selectedItemIds: string[]) => {
+    (checklistIds: string[], selectedItemIds: string[]) => {
       const allowedIds = new Set(
         checklistItems
           .filter(
@@ -126,7 +126,7 @@ const Inspecao = () => {
         responsavel_profile:profiles ( full_name ),
         rel_checklists:inspecoes_checklists (
           checklist_id,
-          checklist:checklists (
+          checklist:checklist (
             id,
             nome,
             periodicidade
@@ -134,7 +134,7 @@ const Inspecao = () => {
         ),
         rel_checklist_itens:inspecoes_checklist_itens (
           checklist_item_id,
-          checklist_item:checklist_itens (
+          checklist_item:checklist_item (
             id,
             descricao,
             checklist_id
@@ -210,7 +210,7 @@ const Inspecao = () => {
 
   const fetchChecklists = useCallback(async () => {
     const { data, error } = await supabase
-      .from("checklists")
+      .from("checklist")
       .select("id, nome, periodicidade")
       .order("nome");
     if (error) {
@@ -222,7 +222,7 @@ const Inspecao = () => {
 
   const fetchChecklistItems = useCallback(async () => {
     const { data, error } = await supabase
-      .from("checklist_itens")
+      .from("checklist_item")
       .select("id, descricao, checklist_id, ordem")
       .order("ordem", { ascending: true });
     if (error) {
@@ -271,8 +271,21 @@ const Inspecao = () => {
     );
   }, [checklistItems, formData.checklistIds]);
 
+  const getPeriodicidadeLabel = (value: ChecklistRow["periodicidade"]) => {
+    const labels: Record<ChecklistRow["periodicidade"], string> = {
+      diaria: "Diária",
+      semanal: "Semanal",
+      quinzenal: "Quinzenal",
+      mensal: "Mensal",
+      trimestral: "Trimestral",
+      semestral: "Semestral",
+      anual: "Anual",
+    };
+    return labels[value] ?? value;
+  };
+
   const syncInspectionRelations = useCallback(
-    async (inspecaoId: number, checklistIds: number[], checklistItemIds: string[]) => {
+    async (inspecaoId: number, checklistIds: string[], checklistItemIds: string[]) => {
       await supabase.from("inspecoes_checklists").delete().eq("inspecao_id", inspecaoId);
       if (checklistIds.length) {
         const checklistPayload = checklistIds.map((checklistId) => ({
@@ -387,7 +400,7 @@ const Inspecao = () => {
     setEditingId(null);
   };
 
-  const toggleChecklist = (checklistId: number, checked: boolean) => {
+  const toggleChecklist = (checklistId: string, checked: boolean) => {
     setFormData((prev) => {
       const checklistIds = checked
         ? Array.from(new Set([...prev.checklistIds, checklistId]))
@@ -534,7 +547,7 @@ const Inspecao = () => {
                           <span className="flex flex-col">
                             <span className="font-medium">{checklist.nome}</span>
                             <span className="text-xs text-muted-foreground">
-                              {checklist.periodicidade} dias
+                              {getPeriodicidadeLabel(checklist.periodicidade)}
                             </span>
                           </span>
                           <input

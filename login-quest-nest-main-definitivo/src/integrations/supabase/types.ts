@@ -274,133 +274,280 @@ export type Database = {
           },
         ]
       }
-      checklist_execucoes: {
+      checklist: {
         Row: {
-          checklist_id: number | null
-          colaborador_id: string | null
+          contrato_id: string | null
           created_at: string | null
-          data_execucao: string | null
           id: string
-          observacoes: string | null
-          status: string | null
+          nome: string
+          periodicidade: Database["public"]["Enums"]["periodicidade_type"]
+          unidade_id: string | null
+          updated_at: string | null
         }
         Insert: {
-          checklist_id?: number | null
-          colaborador_id?: string | null
+          contrato_id?: string | null
           created_at?: string | null
-          data_execucao?: string | null
           id?: string
-          observacoes?: string | null
-          status?: string | null
+          nome: string
+          periodicidade: Database["public"]["Enums"]["periodicidade_type"]
+          unidade_id?: string | null
+          updated_at?: string | null
         }
         Update: {
-          checklist_id?: number | null
-          colaborador_id?: string | null
+          contrato_id?: string | null
           created_at?: string | null
-          data_execucao?: string | null
           id?: string
-          observacoes?: string | null
-          status?: string | null
+          nome?: string
+          periodicidade?: Database["public"]["Enums"]["periodicidade_type"]
+          unidade_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "checklist_execucoes_checklist_id_fkey"
-            columns: ["checklist_id"]
+            foreignKeyName: "checklist_contrato_id_fkey"
+            columns: ["contrato_id"]
             isOneToOne: false
-            referencedRelation: "checklists"
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "checklist_execucoes_colaborador_id_fkey"
-            columns: ["colaborador_id"]
+            foreignKeyName: "checklist_unidade_id_fkey"
+            columns: ["unidade_id"]
             isOneToOne: false
-            referencedRelation: "colaboradores"
+            referencedRelation: "unidades"
             referencedColumns: ["id"]
           },
         ]
       }
-      checklist_itens: {
+      checklist_item: {
         Row: {
-          checklist_id: string | null
+          ativo_id: string | null
+          checklist_id: string
           created_at: string | null
           descricao: string
           id: string
-          obrigatorio: boolean | null
           ordem: number
-          tipo_resposta: "sim_nao" | "texto" | "numero" | "foto" | null
+          periodicidade: Database["public"]["Enums"]["periodicidade_type"]
         }
         Insert: {
-          checklist_id?: string | null
+          ativo_id?: string | null
+          checklist_id: string
           created_at?: string | null
           descricao: string
           id?: string
-          obrigatorio?: boolean | null
-          ordem: number
-          tipo_resposta?: "sim_nao" | "texto" | "numero" | "foto" | null
+          ordem?: number
+          periodicidade: Database["public"]["Enums"]["periodicidade_type"]
         }
         Update: {
-          checklist_id?: string | null
+          ativo_id?: string | null
+          checklist_id?: string
           created_at?: string | null
           descricao?: string
           id?: string
-          obrigatorio?: boolean | null
           ordem?: number
-          tipo_resposta?: "sim_nao" | "texto" | "numero" | "foto" | null
+          periodicidade?: Database["public"]["Enums"]["periodicidade_type"]
         }
         Relationships: [
           {
-            foreignKeyName: "checklist_itens_checklist_id_fkey"
+            foreignKeyName: "checklist_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_item_checklist_id_fkey"
             columns: ["checklist_id"]
             isOneToOne: false
-            referencedRelation: "checklists"
+            referencedRelation: "checklist"
             referencedColumns: ["id"]
           },
         ]
       }
-      checklist_respostas: {
+      execucao_checklist: {
         Row: {
-          conforme: boolean | null
+          checklist_id: string
           created_at: string | null
-          execucao_id: string | null
-          foto_url: string | null
+          data_prevista: string
+          finalizado_em: string | null
           id: string
-          item_id: string | null
-          observacao: string | null
-          resposta: string | null
+          status: Database["public"]["Enums"]["status_execucao"]
+          supervisor_id: string | null
+          updated_at: string | null
         }
         Insert: {
-          conforme?: boolean | null
+          checklist_id: string
           created_at?: string | null
-          execucao_id?: string | null
-          foto_url?: string | null
+          data_prevista: string
+          finalizado_em?: string | null
           id?: string
-          item_id?: string | null
-          observacao?: string | null
-          resposta?: string | null
+          status?: Database["public"]["Enums"]["status_execucao"]
+          supervisor_id?: string | null
+          updated_at?: string | null
         }
         Update: {
-          conforme?: boolean | null
+          checklist_id?: string
           created_at?: string | null
-          execucao_id?: string | null
-          foto_url?: string | null
+          data_prevista?: string
+          finalizado_em?: string | null
           id?: string
-          item_id?: string | null
-          observacao?: string | null
-          resposta?: string | null
+          status?: Database["public"]["Enums"]["status_execucao"]
+          supervisor_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "checklist_respostas_execucao_id_fkey"
-            columns: ["execucao_id"]
+            foreignKeyName: "execucao_checklist_checklist_id_fkey"
+            columns: ["checklist_id"]
             isOneToOne: false
-            referencedRelation: "checklist_execucoes"
+            referencedRelation: "checklist"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "checklist_respostas_item_id_fkey"
-            columns: ["item_id"]
+            foreignKeyName: "execucao_checklist_supervisor_id_fkey"
+            columns: ["supervisor_id"]
             isOneToOne: false
-            referencedRelation: "checklist_itens"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      execucao_checklist_item: {
+        Row: {
+          checklist_item_id: string
+          created_at: string | null
+          data_prevista: string
+          execucao_checklist_id: string
+          finalizado_em: string | null
+          foto: string | null
+          id: string
+          resposta: string | null
+          status: Database["public"]["Enums"]["status_execucao"]
+          supervisor_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          checklist_item_id: string
+          created_at?: string | null
+          data_prevista: string
+          execucao_checklist_id: string
+          finalizado_em?: string | null
+          foto?: string | null
+          id?: string
+          resposta?: string | null
+          status?: Database["public"]["Enums"]["status_execucao"]
+          supervisor_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          checklist_item_id?: string
+          created_at?: string | null
+          data_prevista?: string
+          execucao_checklist_id?: string
+          finalizado_em?: string | null
+          foto?: string | null
+          id?: string
+          resposta?: string | null
+          status?: Database["public"]["Enums"]["status_execucao"]
+          supervisor_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execucao_checklist_item_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_checklist_item_execucao_checklist_id_fkey"
+            columns: ["execucao_checklist_id"]
+            isOneToOne: false
+            referencedRelation: "execucao_checklist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_checklist_item_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resposta_execucao_checklist: {
+        Row: {
+          conforme: boolean
+          execucao_checklist_id: string
+          foto: string | null
+          id: string
+          observacoes: string | null
+          registrado_em: string | null
+          resposta: string
+        }
+        Insert: {
+          conforme: boolean
+          execucao_checklist_id: string
+          foto?: string | null
+          id?: string
+          observacoes?: string | null
+          registrado_em?: string | null
+          resposta: string
+        }
+        Update: {
+          conforme?: boolean
+          execucao_checklist_id?: string
+          foto?: string | null
+          id?: string
+          observacoes?: string | null
+          registrado_em?: string | null
+          resposta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resposta_execucao_checklist_execucao_checklist_id_fkey"
+            columns: ["execucao_checklist_id"]
+            isOneToOne: false
+            referencedRelation: "execucao_checklist"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resposta_execucao_checklist_item: {
+        Row: {
+          conforme: boolean
+          execucao_checklist_item_id: string
+          foto: string | null
+          id: string
+          observacoes: string | null
+          registrado_em: string | null
+          resposta: string
+        }
+        Insert: {
+          conforme: boolean
+          execucao_checklist_item_id: string
+          foto?: string | null
+          id?: string
+          observacoes?: string | null
+          registrado_em?: string | null
+          resposta: string
+        }
+        Update: {
+          conforme?: boolean
+          execucao_checklist_item_id?: string
+          foto?: string | null
+          id?: string
+          observacoes?: string | null
+          registrado_em?: string | null
+          resposta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resposta_execucao_check_item_execucao_checklist_item_id_fkey"
+            columns: ["execucao_checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "execucao_checklist_item"
             referencedColumns: ["id"]
           },
         ]
@@ -481,7 +628,7 @@ export type Database = {
             foreignKeyName: "inspecoes_checklist_itens_checklist_item_id_fkey"
             columns: ["checklist_item_id"]
             isOneToOne: false
-            referencedRelation: "checklist_itens"
+            referencedRelation: "checklist_item"
             referencedColumns: ["id"]
           },
           {
@@ -495,19 +642,19 @@ export type Database = {
       }
       inspecoes_checklists: {
         Row: {
-          checklist_id: number
+          checklist_id: string
           created_at: string | null
           id: number
           inspecao_id: number
         }
         Insert: {
-          checklist_id: number
+          checklist_id: string
           created_at?: string | null
           id?: number
           inspecao_id: number
         }
         Update: {
-          checklist_id?: number
+          checklist_id?: string
           created_at?: string | null
           id?: number
           inspecao_id?: number
@@ -517,7 +664,7 @@ export type Database = {
             foreignKeyName: "inspecoes_checklists_checklist_id_fkey"
             columns: ["checklist_id"]
             isOneToOne: false
-            referencedRelation: "checklists"
+            referencedRelation: "checklist"
             referencedColumns: ["id"]
           },
           {
@@ -525,47 +672,6 @@ export type Database = {
             columns: ["inspecao_id"]
             isOneToOne: false
             referencedRelation: "inspecoes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      checklists: {
-        Row: {
-          created_at: string | null
-          descricao: string | null
-          id: string
-          nome: string
-          status: "ativo" | "inativo" | null
-          tipo: "diario" | "semanal" | "mensal" | "pontual" | null
-          unidade_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          descricao?: string | null
-          id?: string
-          nome: string
-          status?: "ativo" | "inativo" | null
-          tipo?: "diario" | "semanal" | "mensal" | "pontual" | null
-          unidade_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          descricao?: string | null
-          id?: string
-          nome?: string
-          status?: "ativo" | "inativo" | null
-          tipo?: "diario" | "semanal" | "mensal" | "pontual" | null
-          unidade_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "checklists_unidade_id_fkey"
-            columns: ["unidade_id"]
-            isOneToOne: false
-            referencedRelation: "unidades"
             referencedColumns: ["id"]
           },
         ]
@@ -1522,6 +1628,15 @@ export type Database = {
         | "analista_centro_controle"
         | "tecnico"
         | "cliente_view"
+      periodicidade_type:
+        | "diaria"
+        | "semanal"
+        | "quinzenal"
+        | "mensal"
+        | "trimestral"
+        | "semestral"
+        | "anual"
+      status_execucao: "ativo" | "concluido" | "atrasado" | "cancelado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1657,6 +1772,16 @@ export const Constants = {
         "tecnico",
         "cliente_view",
       ],
+      periodicidade_type: [
+        "diaria",
+        "semanal",
+        "quinzenal",
+        "mensal",
+        "trimestral",
+        "semestral",
+        "anual",
+      ],
+      status_execucao: ["ativo", "concluido", "atrasado", "cancelado"],
     },
   },
 } as const

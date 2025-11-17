@@ -440,7 +440,7 @@ const PostoCard = ({ posto, unidade, onEdit, onDelete }: PostoCardProps) => {
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Briefcase className="h-4 w-4 text-primary" />
@@ -450,7 +450,7 @@ const PostoCard = ({ posto, unidade, onEdit, onDelete }: PostoCardProps) => {
               <p className="text-sm text-muted-foreground">{posto.codigo}</p>
             </div>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center sm:justify-end">
             <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -585,14 +585,14 @@ const PostoCard = ({ posto, unidade, onEdit, onDelete }: PostoCardProps) => {
           )}
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
           <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
             <Edit className="h-3 w-3 mr-1" />
             Editar
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="sm:w-auto">
                 <Trash2 className="h-3 w-3" />
               </Button>
             </AlertDialogTrigger>

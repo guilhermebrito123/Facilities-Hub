@@ -36,11 +36,11 @@ export function OrdemServicoDetails({ os, open, onClose }: OrdemServicoDetailsPr
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <DialogTitle>Ordem de Serviço {os.numero}</DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Badge>{os.tipo}</Badge>
               <Badge>{os.prioridade}</Badge>
               <Badge>{os.status.replace("_", " ")}</Badge>
@@ -49,7 +49,7 @@ export function OrdemServicoDetails({ os, open, onClose }: OrdemServicoDetailsPr
         </DialogHeader>
 
         <Tabs defaultValue="detalhes" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
             <TabsTrigger value="detalhes">
               <FileText className="h-4 w-4 mr-2" />
               Detalhes
@@ -79,7 +79,7 @@ export function OrdemServicoDetails({ os, open, onClose }: OrdemServicoDetailsPr
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {os.unidade?.nome && (
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground mt-1" />

@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessageSquare, Send, UserCircle, Star, UserCheck } from "lucide-react";
+import { MessageSquare, Send, UserCircle, Star, UserCheck, Paperclip } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -20,6 +20,14 @@ interface ChamadoDetailsProps {
   onEdit: (chamado: any) => void;
   onDelete: (id: string) => void;
 }
+
+type ChamadoAnexo = {
+  id: string;
+  nome_arquivo: string;
+  caminho_storage: string;
+  created_at: string | null;
+  tipo_arquivo?: string | null;
+};
 
 export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }: ChamadoDetailsProps) {
   const { toast } = useToast();
@@ -36,6 +44,62 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
     fetchUser();
   }, []);
 
+  const { data: anexos, isLoading: loadingAnexos } = useQuery<ChamadoAnexo[]>({
+  queryKey: ["chamado-anexos-detalhes", chamado.id],
+  enabled: open && !!chamado.id,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("chamados_anexos")
+      .select("*")
+      .eq("chamado_id", chamado.id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as ChamadoAnexo[];
+  },
+});
+
+const handleAbrirAnexo = async (anexo: ChamadoAnexo) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from("chamados-anexos") // nome do bucket
+      .download(anexo.caminho_storage); // ex: "123/1700000000-arquivo.pdf"
+
+    if (error || !data) {
+      throw error || new Error("Nenhum dado retornado do Storage");
+    }
+
+    // data já é um Blob no browser
+    const blob = data as Blob;
+    const url = URL.createObjectURL(blob);
+
+    // Se for imagem ou PDF, abre em nova aba
+    if (anexo.tipo_arquivo?.startsWith("image/") || anexo.tipo_arquivo === "application/pdf") {
+      window.open(url, "_blank");
+      // revoga depois de um tempo para não vazar memória
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } else {
+      // Para outros tipos, força download
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = anexo.nome_arquivo;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+  } catch (err) {
+    console.error("Erro ao abrir/baixar anexo:", err);
+    toast({
+      title: "Erro ao abrir anexo",
+      description: "Não foi possível abrir o arquivo. Tente novamente.",
+      variant: "destructive",
+    });
+  }
+};
+
+
+  
   const { data: comentarios, isLoading: loadingComentarios } = useQuery({
     queryKey: ["chamados_comentarios", chamado.id],
     queryFn: async () => {
@@ -168,14 +232,14 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <DialogTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
               <span>{chamado.numero}</span>
               <Badge>{chamado.status?.replace("_", " ")}</Badge>
             </DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {!chamado.atribuido_para_id && currentUserId && (
                 <Button
                   variant="default"
@@ -189,7 +253,7 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
               )}
               {chamado.comentario_avaliacao && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  Coment�rio: {chamado.comentario_avaliacao}
+                  Coment�rio: {chamado.comentario_avaliacao}
                 </p>
               )}
               {chamado.atribuido_para_id === currentUserId && chamado.status !== "concluido" && (
@@ -235,6 +299,48 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
           </DialogDescription>
         </DialogHeader>
 
+        <Separator />
+
+<Card className="p-4">
+  <h3 className="font-semibold mb-3 flex items-center gap-2">
+    <Paperclip className="h-5 w-5" />
+    Anexos
+  </h3>
+
+  {loadingAnexos ? (
+    <Skeleton className="h-16 w-full" />
+  ) : anexos && anexos.length > 0 ? (
+    <div className="space-y-2">
+      {anexos.map((anexo) => (
+        <button
+          key={anexo.id}
+          type="button"
+          onClick={() => handleAbrirAnexo(anexo)}
+          className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+        >
+          <div className="min-w-0 text-left">
+            <p className="truncate font-medium">{anexo.nome_arquivo}</p>
+            <p className="text-xs text-muted-foreground">
+              {anexo.created_at
+                ? format(new Date(anexo.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                : "Sem data"}
+            </p>
+          </div>
+          <span className="text-xs text-primary underline">
+            Abrir / Baixar
+          </span>
+        </button>
+      ))}
+    </div>
+  ) : (
+    <p className="text-sm text-muted-foreground">
+      Nenhum anexo cadastrado para este chamado.
+    </p>
+  )}
+</Card>
+
+<Separator />
+
         <div className="space-y-6">
           <div>
             <h2 className="text-2xl font-bold mb-2">{chamado.titulo}</h2>
@@ -243,7 +349,7 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
             )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Card className="p-4 space-y-2">
               <h3 className="font-semibold">Informações</h3>
               <div className="text-sm space-y-1">
@@ -325,7 +431,7 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
                 <Star className="h-5 w-5" />
                 Avaliacao do Chamado
               </h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {[1, 2, 3, 4, 5].map((nota) => (
                   <Button
                     key={nota}
@@ -344,7 +450,7 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
               )}
               {chamado.comentario_avaliacao && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  Coment�rio: {chamado.comentario_avaliacao}
+                  Coment�rio: {chamado.comentario_avaliacao}
                 </p>
               )}
             </Card>
@@ -385,8 +491,9 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
               <Textarea
+                className="w-full"
                 placeholder="Adicione um comentário..."
                 value={novoComentario}
                 onChange={(e) => setNovoComentario(e.target.value)}
@@ -405,6 +512,9 @@ export function ChamadoDetails({ chamado, open, onOpenChange, onEdit, onDelete }
     </Dialog>
   );
 }
+
+
+
 
 
 

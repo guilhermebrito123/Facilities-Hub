@@ -111,38 +111,38 @@ export default function Chamados() {
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4 md:p-6">
-        <div className="flex items-center justify-between rounded-lg border bg-card p-4">
+        <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold">Chamados</h1>
             <p className="text-muted-foreground">Gestão completa de chamados e solicitações</p>
           </div>
-          <Button onClick={() => { setEditingChamado(null); setShowForm(true); }}>
+          <Button className="w-full md:w-auto" onClick={() => { setEditingChamado(null); setShowForm(true); }}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Chamado
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4 rounded-lg border bg-card p-4">
-          <Card className="p-4">
+        <div className="grid gap-4 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="p-4 text-center space-y-1">
             <div className="text-sm font-medium text-muted-foreground">Total</div>
             <div className="text-2xl font-bold">{stats.total}</div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-4 text-center space-y-1">
             <div className="text-sm font-medium text-muted-foreground">Abertos</div>
             <div className="text-2xl font-bold text-yellow-600">{stats.abertos}</div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-4 text-center space-y-1">
             <div className="text-sm font-medium text-muted-foreground">Em Andamento</div>
             <div className="text-2xl font-bold text-blue-600">{stats.em_andamento}</div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-4 text-center space-y-1">
             <div className="text-sm font-medium text-muted-foreground">Concluídos</div>
             <div className="text-2xl font-bold text-green-600">{stats.concluidos}</div>
           </Card>
         </div>
 
-        <div className="flex flex-col gap-4 md:flex-row rounded-lg border bg-card p-4">
-          <div className="relative flex-1">
+        <div className="rounded-lg border bg-card p-4 space-y-3">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar por título, número ou descrição..."
@@ -151,64 +151,66 @@ export default function Chamados() {
               className="pl-9"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos Status</SelectItem>
-              <SelectItem value="aberto">Aberto</SelectItem>
-              <SelectItem value="em_andamento">Em Andamento</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="concluido">Concluído</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas Categorias</SelectItem>
-              <SelectItem value="manutencao">Manutenção</SelectItem>
-              <SelectItem value="rh">RH</SelectItem>
-              <SelectItem value="suprimentos">Suprimentos</SelectItem>
-              <SelectItem value="atendimento">Atendimento</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={prioridadeFilter} onValueChange={setPrioridadeFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Prioridade" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas Prioridades</SelectItem>
-              <SelectItem value="baixa">Baixa</SelectItem>
-              <SelectItem value="media">Média</SelectItem>
-              <SelectItem value="alta">Alta</SelectItem>
-              <SelectItem value="critica">Crítica</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={atribuidoFilter} onValueChange={setAtribuidoFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Atribuição" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="meus">Meus Chamados</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos Status</SelectItem>
+                <SelectItem value="aberto">Aberto</SelectItem>
+                <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="concluido">Concluído</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas Categorias</SelectItem>
+                <SelectItem value="manutencao">Manutenção</SelectItem>
+                <SelectItem value="rh">RH</SelectItem>
+                <SelectItem value="suprimentos">Suprimentos</SelectItem>
+                <SelectItem value="atendimento">Atendimento</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={prioridadeFilter} onValueChange={setPrioridadeFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas Prioridades</SelectItem>
+                <SelectItem value="baixa">Baixa</SelectItem>
+                <SelectItem value="media">Média</SelectItem>
+                <SelectItem value="alta">Alta</SelectItem>
+                <SelectItem value="critica">Crítica</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={atribuidoFilter} onValueChange={setAtribuidoFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Atribuição" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="meus">Meus Chamados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Título</TableHead>
-                <TableHead>Unidade</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Data Abertura</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+            <TableHead className="hidden sm:table-cell">Número</TableHead>
+            <TableHead>Título</TableHead>
+            <TableHead className="hidden sm:table-cell">Unidade</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Prioridade</TableHead>
+            <TableHead className="hidden sm:table-cell">Data Abertura</TableHead>
+            <TableHead className="hidden sm:table-cell text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,9 +220,9 @@ export default function Chamados() {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => setDetailsChamado(chamado)}
                 >
-                  <TableCell className="font-mono text-sm">{chamado.numero}</TableCell>
+                  <TableCell className="hidden font-mono text-sm sm:table-cell">{chamado.numero}</TableCell>
                   <TableCell className="font-medium">{chamado.titulo}</TableCell>
-                  <TableCell>{chamado.unidade?.nome || "-"}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{chamado.unidade?.nome || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={getStatusColor(chamado.status)}>
                       {chamado.status?.replace("_", " ")}
@@ -231,10 +233,10 @@ export default function Chamados() {
                       {chamado.prioridade}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {format(new Date(chamado.data_abertura), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden sm:table-cell text-right">
                     <Button
                       variant="ghost"
                       size="icon"

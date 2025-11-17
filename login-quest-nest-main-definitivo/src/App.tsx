@@ -24,6 +24,7 @@ import Checklist from "./pages/Checklist";
 import ChecklistItens from "./pages/ChecklistItens";
 import ChecklistExecucoes from "./pages/ChecklistExecucoes";
 import ChecklistRespostas from "./pages/ChecklistRespostas";
+import ChecklistRespostasLista from "./pages/ChecklistRespostasLista";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,14 @@ const App = () => (
           <Route path="/checklist-itens" element={<ProtectedRoute><ChecklistItens /></ProtectedRoute>} />
           <Route path="/checklist-execucoes" element={<ProtectedRoute><ChecklistExecucoes /></ProtectedRoute>} />
           <Route path="/checklist-respostas" element={<ProtectedRoute><ChecklistRespostas /></ProtectedRoute>} />
+          <Route
+            path="/checklist-respostas-lista"
+            element={
+              <ProtectedRoute>
+                <ChecklistRespostasLista />
+              </ProtectedRoute>
+            }
+          />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
