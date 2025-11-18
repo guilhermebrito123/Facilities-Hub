@@ -102,6 +102,7 @@ const handleAbrirAnexo = async (anexo: ChamadoAnexo) => {
   
   const { data: comentarios, isLoading: loadingComentarios } = useQuery({
     queryKey: ["chamados_comentarios", chamado.id],
+    enabled: open && !!chamado.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("chamados_comentarios")
@@ -115,29 +116,37 @@ const handleAbrirAnexo = async (anexo: ChamadoAnexo) => {
       if (error) throw error;
       return data;
     },
-    enabled: open,
   });
 
-  const adicionarComentario = useMutation({
-    mutationFn: async (comentario: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+const adicionarComentario = useMutation({
+  mutationFn: async (comentario: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase
-        .from("chamados_comentarios")
-        .insert([{
-          chamado_id: chamado.id,
-          usuario_id: user.id,
-          comentario,
-        }]);
+    const { data, error } = await supabase
+      .from("chamados_comentarios")
+      .insert([{
+        chamado_id: chamado.id,
+        usuario_id: user.id,
+        comentario,
+      }])
+      .select(`
+        *,
+        usuario:profiles(full_name)
+      `)
+      .single();
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chamados_comentarios", chamado.id] });
-      setNovoComentario("");
-      toast({ title: "Comentário adicionado com sucesso!" });
-    },
+    if (error) throw error;
+    return data;
+  },
+  onSuccess: (novoComentarioInserido) => {
+    queryClient.setQueryData<any[]>(["chamados_comentarios", chamado.id], (oldComentarios) => {
+      const lista = oldComentarios || [];
+      return [...lista, novoComentarioInserido];
+    });
+    setNovoComentario("");
+    toast({ title: "Comentário adicionado com sucesso!" });
+  },
     onError: (error: any) => {
       toast({
         title: "Erro ao adicionar comentário",
@@ -274,7 +283,10 @@ const handleAbrirAnexo = async (anexo: ChamadoAnexo) => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  onEdit(chamado);
+                  onEdit({
+                    ...chamado,
+                    anexos: anexos ?? [],
+                  });
                   onOpenChange(false);
                 }}
               >

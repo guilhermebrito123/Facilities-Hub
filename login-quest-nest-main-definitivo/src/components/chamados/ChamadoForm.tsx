@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Paperclip } from "lucide-react";
 
 const chamadoSchema = z.object({
@@ -66,10 +66,12 @@ interface ChamadoFormProps {
 
 export function ChamadoForm({ open, onOpenChange, chamado, onSuccess }: ChamadoFormProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const chamadoId = chamado?.id ?? null;
 
   const form = useForm<ChamadoFormValues>({
@@ -133,9 +135,10 @@ export function ChamadoForm({ open, onOpenChange, chamado, onSuccess }: ChamadoF
     },
   });
 
-  const { data: anexosExistentes, isLoading: loadingAnexosExistentes } = useQuery<ChamadoAnexo[]>({
+  const { data: anexosExistentes, isLoading: loadingAnexosExistentes, refetch: refetchAnexosExistentes } = useQuery<ChamadoAnexo[]>({
     queryKey: ["chamado-anexos", chamadoId],
     enabled: !!chamadoId && open,
+    initialData: chamado?.anexos as ChamadoAnexo[] | undefined,
     queryFn: async () => {
       if (!chamadoId) return [];
 
@@ -184,11 +187,13 @@ export function ChamadoForm({ open, onOpenChange, chamado, onSuccess }: ChamadoF
     },
   });
 
-  const existingAttachments = anexosExistentes ?? [];
+  const existingAttachments =
+    anexosExistentes ??
+    ((chamado?.anexos as ChamadoAnexo[] | undefined) ?? []);
 
-  const handleFileSelection = (fileList: FileList | null) => {
-    if (!fileList) {
-      setUploadedFiles([]);
+  const handleFileSelection = (fileList: FileList | null, clearInput?: () => void) => {
+    if (!fileList || fileList.length === 0) {
+      clearInput?.();
       return;
     }
 
@@ -213,7 +218,9 @@ export function ChamadoForm({ open, onOpenChange, chamado, onSuccess }: ChamadoF
       });
     }
 
-    setUploadedFiles(accepted);
+    // Permite adicionar novos arquivos sem perder sele��es anteriores
+    setUploadedFiles((prev) => [...prev, ...accepted]);
+    clearInput?.();
   };
 
   const handleDownloadAnexo = async (anexo: ChamadoAnexo) => {
@@ -240,6 +247,55 @@ export function ChamadoForm({ open, onOpenChange, chamado, onSuccess }: ChamadoF
         variant: "destructive",
       });
     }
+  };
+
+  const handleDeleteExistingAnexo = async (anexo: ChamadoAnexo) => {
+    if (!chamadoId) return;
+    try {
+      setDeletingAttachmentId(anexo.id);
+
+      // Remove do storage
+      const { error: storageError } = await supabase.storage
+        .from("chamados-anexos")
+        .remove([anexo.caminho_storage]);
+
+      if (storageError) throw storageError;
+
+      // Remove do banco
+      const { error: dbError } = await supabase
+        .from("chamados_anexos")
+        .delete()
+        .eq("id", anexo.id);
+
+      if (dbError) throw dbError;
+
+      // Atualiza caches locais para refletir remo��o imediata
+      const cacheKeys = [
+        ["chamado-anexos", chamadoId],
+        ["chamado-anexos-detalhes", chamadoId],
+      ];
+      cacheKeys.forEach((key) => {
+        queryClient.setQueryData<ChamadoAnexo[]>(key, (old) =>
+          (old || []).filter((item) => item.id !== anexo.id)
+        );
+      });
+
+      toast({ title: "Anexo removido com sucesso" });
+      await refetchAnexosExistentes();
+    } catch (error: any) {
+      console.error("Erro ao remover anexo:", error);
+      toast({
+        title: "Erro ao remover anexo",
+        description: error?.message ?? "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
+  const handleRemoveUploadedFile = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const selectedCategoria = form.watch("categoria");
@@ -675,13 +731,37 @@ const onSubmit = async (data: ChamadoFormValues) => {
                     type="file"
                     multiple
                     accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    onChange={(e) => handleFileSelection(e.target.files)}
+                    onChange={(e) =>
+                      handleFileSelection(e.target.files, () => {
+                        e.target.value = "";
+                      })
+                    }
                   />
                 </FormControl>
                 {uploadedFiles.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {uploadedFiles.length} arquivo(s) selecionado(s)
-                  </p>
+                  <div className="mt-2 space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div
+                        key={file.name + index}
+                        className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveUploadedFile(index)}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </FormItem>
 
@@ -698,7 +778,7 @@ const onSubmit = async (data: ChamadoFormValues) => {
                       {existingAttachments.map((anexo) => (
                         <div
                           key={anexo.id}
-                          className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                          className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
                         >
                           <div className="min-w-0">
                             <p className="truncate font-medium">{anexo.nome_arquivo}</p>
@@ -709,14 +789,26 @@ const onSubmit = async (data: ChamadoFormValues) => {
                               {anexo.usuario?.full_name ? ` • ${anexo.usuario.full_name}` : ""}
                             </p>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadAnexo(anexo)}
-                          >
-                            Baixar
-                          </Button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadAnexo(anexo)}
+                            >
+                              Baixar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              disabled={deletingAttachmentId === anexo.id}
+                              onClick={() => handleDeleteExistingAnexo(anexo)}
+                            >
+                              {deletingAttachmentId === anexo.id ? "Removendo..." : "Remover"}
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
