@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,9 +120,7 @@ const ContratoForm = ({ contratoId, clienteId, onClose, onSuccess }: ContratoFor
           description: "Contrato atualizado com sucesso",
         });
       } else {
-        const { error } = await supabase
-          .from("contratos")
-          .insert([dataToSave]);
+        const { error } = await supabase.from("contratos").insert([dataToSave]);
 
         if (error) throw error;
 
@@ -146,7 +144,7 @@ const ContratoForm = ({ contratoId, clienteId, onClose, onSuccess }: ContratoFor
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle>{contratoId ? "Editar Contrato" : "Novo Contrato"}</DialogTitle>
           <DialogDescription>
@@ -155,8 +153,8 @@ const ContratoForm = ({ contratoId, clienteId, onClose, onSuccess }: ContratoFor
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="cliente_id">Cliente *</Label>
               <Select
                 value={formData.cliente_id}

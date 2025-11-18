@@ -25,6 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DiaristaForm } from "@/components/diaristas/DiaristaForm";
 
 export default function Diaristas() {
@@ -32,6 +39,7 @@ export default function Diaristas() {
   const [showForm, setShowForm] = useState(false);
   const [editingDiarista, setEditingDiarista] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [diaristaDetalhe, setDiaristaDetalhe] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: diaristas, isLoading } = useQuery({
@@ -100,16 +108,16 @@ export default function Diaristas() {
           </div>
         </div>
 
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-              <TableHead>Nome</TableHead>
-                <TableHead>RG</TableHead>
-                <TableHead>CNH</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead className="hidden sm:table-cell">RG</TableHead>
+                <TableHead className="hidden sm:table-cell">CNH</TableHead>
                 <TableHead>Cidade</TableHead>
                 <TableHead>Telefone</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead className="hidden sm:table-cell">Email</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -129,15 +137,25 @@ export default function Diaristas() {
                 </TableRow>
               ) : (
                 filteredDiaristas?.map((diarista) => (
-                  <TableRow key={diarista.id}>
+                  <TableRow
+                    key={diarista.id}
+                    className="cursor-pointer"
+                    onClick={() => setDiaristaDetalhe(diarista)}
+                  >
                     <TableCell className="font-medium">
                       {diarista.nome_completo}
                     </TableCell>
-                    <TableCell>{diarista.rg}</TableCell>
-                    <TableCell>{diarista.cnh}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {diarista.rg}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {diarista.cnh}
+                    </TableCell>
                     <TableCell>{diarista.cidade || "-"}</TableCell>
                     <TableCell>{diarista.telefone}</TableCell>
-                    <TableCell>{diarista.email}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {diarista.email}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -152,14 +170,20 @@ export default function Diaristas() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEdit(diarista)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(diarista);
+                          }}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setDeletingId(diarista.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingId(diarista.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -206,6 +230,49 @@ export default function Diaristas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={!!diaristaDetalhe}
+        onOpenChange={(open) => {
+          if (!open) setDiaristaDetalhe(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{diaristaDetalhe?.nome_completo || "Diarista"}</DialogTitle>
+            <DialogDescription>Dados completos do diarista</DialogDescription>
+          </DialogHeader>
+
+          {diaristaDetalhe && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">RG</p>
+                <p className="font-medium break-words">{diaristaDetalhe.rg || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">CNH</p>
+                <p className="font-medium break-words">{diaristaDetalhe.cnh || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Email</p>
+                <p className="font-medium break-words">{diaristaDetalhe.email || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Telefone</p>
+                <p className="font-medium break-words">{diaristaDetalhe.telefone || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Cidade</p>
+                <p className="font-medium break-words">{diaristaDetalhe.cidade || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Status</p>
+                <p className="font-medium break-words">{diaristaDetalhe.status}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

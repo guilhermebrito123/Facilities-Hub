@@ -113,8 +113,8 @@ export function DiaristaForm({ open, onClose, onSuccess, diarista }: DiaristaFor
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="nome_completo">Nome Completo *</Label>
               <Input
                 id="nome_completo"
@@ -150,7 +150,7 @@ export function DiaristaForm({ open, onClose, onSuccess, diarista }: DiaristaFor
               />
             </div>
 
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="endereco">Endereço *</Label>
               <Input
                 id="endereco"

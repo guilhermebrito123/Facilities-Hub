@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Eye, Calendar, User, MapPin, Clock, CheckCircle2 } from "lucide-react";
+import { Pencil, Trash2, Eye, Calendar, User, MapPin, Clock, CheckCircle2, UserPlus } from "lucide-react";
 import { OrdemServicoDetails } from "./OrdemServicoDetails";
 import {
   AlertDialog,
@@ -20,9 +20,10 @@ interface OrdemServicoCardProps {
   onEdit: (os: any) => void;
   onDelete: (id: string) => void;
   onConcluir: (id: string) => void;
+  onAtribuir: (id: string) => void;
 }
 
-export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir }: OrdemServicoCardProps) {
+export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir, onAtribuir }: OrdemServicoCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConcluirDialog, setShowConcluirDialog] = useState(false);
@@ -81,9 +82,21 @@ export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir }: OrdemServ
               </Button>
               {os.status !== "concluida" && (
                 <>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (window.confirm("Se atribuir como tecnico?")) {
+                        onAtribuir(os.id);
+                      }
+                    }}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setShowConcluirDialog(true)}
                     className="text-green-600 hover:text-green-700 hover:bg-green-50"
                   >
@@ -146,9 +159,9 @@ export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir }: OrdemServ
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar exclusao</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a OS {os.numero}? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir a OS {os.numero}? Esta acao nao pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -163,15 +176,15 @@ export function OrdemServicoCard({ os, onEdit, onDelete, onConcluir }: OrdemServ
       <AlertDialog open={showConcluirDialog} onOpenChange={setShowConcluirDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Concluir Ordem de Serviço</AlertDialogTitle>
+            <AlertDialogTitle>Concluir Ordem de Servico</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja concluir a OS {os.numero}? Esta ação marcará a ordem como concluída.
+              Tem certeza que deseja concluir a OS {os.numero}? Esta acao marcara a ordem como concluida.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => onConcluir(os.id)} 
+            <AlertDialogAction
+              onClick={() => onConcluir(os.id)}
               className="bg-green-600 hover:bg-green-700"
             >
               Concluir

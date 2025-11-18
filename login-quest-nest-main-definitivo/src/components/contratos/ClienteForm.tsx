@@ -116,14 +116,14 @@ const ClienteForm = ({ clienteId, onClose, onSuccess }: ClienteFormProps) => {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle>{clienteId ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
           <DialogDescription>Preencha os dados do cliente</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="razao_social">Razao Social *</Label>
               <Input

@@ -415,7 +415,7 @@ const adicionarComentario = useMutation({
                   <div><span className="font-medium">Atribuído:</span> {chamado.atribuido.nome_completo}</div>
                 )}
                 {chamado.responsavel && (
-                  <div><span className="font-medium">Responsável:</span> {chamado.responsavel.nome_completo}</div>
+                  <div><span className="font-medium">Responsável:</span> {chamado.responsavel.full_name || chamado.responsavel.nome_completo}</div>
                 )}
               </div>
             </Card>

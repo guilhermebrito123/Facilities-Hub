@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,7 +27,6 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
     status: "aberta",
     unidade_id: "",
     ativo_id: "",
-    responsavel_id: "",
     data_prevista: "",
     observacoes: "",
   });
@@ -40,18 +39,6 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
         .select("id, nome")
         .eq("status", "ativo")
         .order("nome");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: usuarios } = useQuery({
-    queryKey: ["usuarios"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .order("full_name");
       if (error) throw error;
       return data;
     },
@@ -81,12 +68,10 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
         status: os.status || "aberta",
         unidade_id: os.unidade_id || "",
         ativo_id: os.ativo_id || "",
-        responsavel_id: os.responsavel_id || "",
         data_prevista: os.data_prevista || "",
         observacoes: os.observacoes || "",
       });
     } else {
-      // Generate numero for new OS
       generateNumero();
     }
   }, [os]);
@@ -112,13 +97,12 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      if (!user) throw new Error("Usuario nao autenticado");
 
       const payload = {
         ...formData,
         solicitante_id: os?.solicitante_id || user.id,
         data_prevista: formData.data_prevista || null,
-        responsavel_id: formData.responsavel_id || null,
         ativo_id: formData.ativo_id || null,
       };
 
@@ -147,14 +131,14 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl w-[95vw]">
         <DialogHeader>
-          <DialogTitle>{os ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}</DialogTitle>
+          <DialogTitle>{os ? "Editar Ordem de Servico" : "Nova Ordem de Servico"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="numero">Número *</Label>
+              <Label htmlFor="numero">Numero *</Label>
               <Input
                 id="numero"
                 value={formData.numero}
@@ -180,7 +164,7 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="titulo">Título *</Label>
+            <Label htmlFor="titulo">Titulo *</Label>
             <Input
               id="titulo"
               value={formData.titulo}
@@ -190,7 +174,7 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
+            <Label htmlFor="descricao">Descricao</Label>
             <Textarea
               id="descricao"
               value={formData.descricao}
@@ -199,7 +183,7 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="prioridade">Prioridade *</Label>
               <Select value={formData.prioridade} onValueChange={(value) => setFormData({ ...formData, prioridade: value })}>
@@ -208,7 +192,7 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="baixa">Baixa</SelectItem>
-                  <SelectItem value="media">Média</SelectItem>
+                  <SelectItem value="media">Media</SelectItem>
                   <SelectItem value="alta">Alta</SelectItem>
                   <SelectItem value="urgente">Urgente</SelectItem>
                 </SelectContent>
@@ -223,14 +207,14 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
                 <SelectContent>
                   <SelectItem value="aberta">Aberta</SelectItem>
                   <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                  <SelectItem value="concluida">Concluída</SelectItem>
+                  <SelectItem value="concluida">Concluida</SelectItem>
                   <SelectItem value="cancelada">Cancelada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="unidade_id">Unidade</Label>
               <Select value={formData.unidade_id} onValueChange={(value) => setFormData({ ...formData, unidade_id: value })}>
@@ -264,22 +248,6 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="responsavel_id">Responsável</Label>
-            <Select value={formData.responsavel_id} onValueChange={(value) => setFormData({ ...formData, responsavel_id: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                {usuarios?.map((usuario) => (
-                  <SelectItem key={usuario.id} value={usuario.id}>
-                    {usuario.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="data_prevista">Data Prevista</Label>
             <Input
               id="data_prevista"
@@ -290,7 +258,7 @@ export function OrdemServicoForm({ os, open, onClose, onSuccess }: OrdemServicoF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
+            <Label htmlFor="observacoes">Observacoes</Label>
             <Textarea
               id="observacoes"
               value={formData.observacoes}

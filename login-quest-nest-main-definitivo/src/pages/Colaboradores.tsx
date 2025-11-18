@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Colaboradores() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [alocacaoFilter, setAlocacaoFilter] = useState<string>("all");
+  const [cargoFilter, setCargoFilter] = useState<string>("all");
   const [unidadeFilter, setUnidadeFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [editingColaborador, setEditingColaborador] = useState<any>(null);
@@ -61,18 +70,24 @@ export default function Colaboradores() {
   const [escalaColaborador, setEscalaColaborador] = useState<any>(null);
   const [unidadeColaborador, setUnidadeColaborador] = useState<any>(null);
   const [calendarioColaborador, setCalendarioColaborador] = useState<any>(null);
+  const [colaboradorDetalhe, setColaboradorDetalhe] = useState<any>(null);
 
   const { data: colaboradores, refetch } = useQuery({
-    queryKey: ["colaboradores", statusFilter, unidadeFilter],
+    queryKey: ["colaboradores", statusFilter, unidadeFilter, alocacaoFilter, cargoFilter],
     queryFn: async () => {
       let query = supabase
         .from("colaboradores")
         .select(
           `
           *,
-          unidade:unidades(nome),
+          unidade:unidades(id, nome, contratos(id, nome, codigo)),
           escala:escalas(nome, tipo),
-          posto:postos_servico(nome, codigo)
+          posto:postos_servico(
+            id,
+            nome,
+            codigo,
+            unidade:unidades(id, nome, contratos(id, nome, codigo))
+          )
         `
         )
         .order("nome_completo");
@@ -82,6 +97,14 @@ export default function Colaboradores() {
       }
       if (unidadeFilter !== "all") {
         query = query.eq("unidade_id", unidadeFilter);
+      }
+      if (alocacaoFilter === "alocado") {
+        query = query.not("posto_servico_id", "is", null);
+      } else if (alocacaoFilter === "nao_alocado") {
+        query = query.is("posto_servico_id", null);
+      }
+      if (cargoFilter !== "all") {
+        query = query.eq("cargo", cargoFilter);
       }
 
       const { data, error } = await query;
@@ -123,7 +146,7 @@ export default function Colaboradores() {
         .eq("id", id);
 
       if (error) throw error;
-      toast.success("Colaborador excluído com sucesso");
+      toast.success("Colaborador excluÃ­do com sucesso");
       refetch();
     } catch (error: any) {
       toast.error(error.message || "Erro ao excluir colaborador");
@@ -138,10 +161,10 @@ export default function Colaboradores() {
         .eq("id", colaboradorId);
 
       if (error) throw error;
-      toast.success("Posto de serviço desvinculado com sucesso");
+      toast.success("Posto de serviÃ§o desvinculado com sucesso");
       refetch();
     } catch (error: any) {
-      toast.error(error.message || "Erro ao desvincular posto de serviço");
+      toast.error(error.message || "Erro ao desvincular posto de serviÃ§o");
     }
   };
 
@@ -180,54 +203,89 @@ export default function Colaboradores() {
               className="pl-9"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Status</SelectItem>
-              <SelectItem value="ativo">Ativo</SelectItem>
-              <SelectItem value="afastado">Afastado</SelectItem>
-              <SelectItem value="ferias">Férias</SelectItem>
-              <SelectItem value="desligado">Desligado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={unidadeFilter} onValueChange={setUnidadeFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Unidade" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas Unidades</SelectItem>
-              {unidades?.map((unidade) => (
-                <SelectItem key={unidade.id} value={unidade.id}>
-                  {unidade.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 w-full md:w-auto">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Status</SelectItem>
+                <SelectItem value="ativo">Ativo</SelectItem>
+                <SelectItem value="afastado">Afastado</SelectItem>
+                <SelectItem value="ferias">Férias</SelectItem>
+                <SelectItem value="desligado">Desligado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={unidadeFilter} onValueChange={setUnidadeFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Unidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Unidades</SelectItem>
+                {unidades?.map((unidade) => (
+                  <SelectItem key={unidade.id} value={unidade.id}>
+                    {unidade.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={alocacaoFilter} onValueChange={setAlocacaoFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Alocação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="alocado">Alocado</SelectItem>
+                <SelectItem value="nao_alocado">Não alocado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={cargoFilter} onValueChange={setCargoFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Cargo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Cargos</SelectItem>
+                {Array.from(
+                  new Set(
+                    (colaboradores || [])
+                      .map((c: any) => c.cargo)
+                      .filter(Boolean)
+                  )
+                ).map((cargo) => (
+                  <SelectItem key={cargo as string} value={cargo as string}>
+                    {cargo as string}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Cargo</TableHead>
-                <TableHead>Função</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Unidade Padrão</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredColaboradores?.map((colaborador) => (
-                <TableRow key={colaborador.id}>
+                <TableRow
+                  key={colaborador.id}
+                  className="cursor-pointer"
+                  onClick={() => setColaboradorDetalhe(colaborador)}
+                >
                   <TableCell className="font-medium">
                     {colaborador.nome_completo}
                   </TableCell>
                   <TableCell>{colaborador.cargo || "-"}</TableCell>
-                  <TableCell>{colaborador.posto?.nome || "-"}</TableCell>
                   <TableCell>
                     {colaborador.escala?.tipo === "12x36"
                       ? "escala_12x36"
@@ -255,7 +313,10 @@ export default function Colaboradores() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setUnidadeColaborador(colaborador)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUnidadeColaborador(colaborador);
+                        }}
                           title="Atribuir Unidade/Posto"
                         >
                           <MapPin className="h-4 w-4" />
@@ -265,8 +326,11 @@ export default function Colaboradores() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDesvincularPosto(colaborador.id)}
-                          title="Desvincular Posto de Serviço"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDesvincularPosto(colaborador.id);
+                        }}
+                          title="Desvincular Posto de ServiÃ§o"
                         >
                           <Unlink className="h-4 w-4 text-orange-500" />
                         </Button>
@@ -274,8 +338,11 @@ export default function Colaboradores() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setPresencaColaborador(colaborador)}
-                        title="Histórico de Presença"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPresencaColaborador(colaborador);
+                      }}
+                        title="Histórico de presença"
                       >
                         <History className="h-4 w-4" />
                       </Button>
@@ -283,13 +350,20 @@ export default function Colaboradores() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEdit(colaborador)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(colaborador);
+                      }}
                       >
                         <Edit className="h-4 w-4" />
-                      </Button>
+                        </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>
@@ -378,6 +452,85 @@ export default function Colaboradores() {
             colaborador={calendarioColaborador}
           />
         )}
+
+        <Dialog
+          open={!!colaboradorDetalhe}
+          onOpenChange={(open) => {
+            if (!open) setColaboradorDetalhe(null);
+          }}
+        >
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {colaboradorDetalhe?.nome_completo || "Colaborador"}
+              </DialogTitle>
+              <DialogDescription>
+                Informações completas do colaborador
+              </DialogDescription>
+            </DialogHeader>
+
+            {colaboradorDetalhe && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{colaboradorDetalhe.email || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Telefone</p>
+                    <p className="font-medium">{colaboradorDetalhe.telefone || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="font-medium">{colaboradorDetalhe.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cargo</p>
+                    <p className="font-medium">{colaboradorDetalhe.cargo || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tipo / Escala</p>
+                    <p className="font-medium">
+                      {colaboradorDetalhe.escala?.tipo
+                        ? colaboradorDetalhe.escala.tipo
+                        : "efetivo"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-4 space-y-2">
+                  <p className="font-semibold">Alocação</p>
+                  {colaboradorDetalhe.posto_servico_id ? (
+                    <div className="space-y-1 text-sm">
+                      <p>
+                        <span className="font-medium">Posto: </span>
+                        {colaboradorDetalhe.posto?.codigo
+                          ? `${colaboradorDetalhe.posto.codigo} - ${colaboradorDetalhe.posto.nome}`
+                          : colaboradorDetalhe.posto?.nome || "-"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Unidade: </span>
+                        {colaboradorDetalhe.posto?.unidade?.nome ||
+                          colaboradorDetalhe.unidade?.nome ||
+                          "-"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Contrato: </span>
+                        {colaboradorDetalhe.posto?.unidade?.contratos?.nome ||
+                          colaboradorDetalhe.unidade?.contratos?.nome ||
+                          "-"}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Não alocado a um posto de serviço.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

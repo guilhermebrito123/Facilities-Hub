@@ -20,6 +20,7 @@ export default function Chamados() {
   const [categoriaFilter, setCategoriaFilter] = useState<string>("todos");
   const [prioridadeFilter, setPrioridadeFilter] = useState<string>("todos");
   const [atribuidoFilter, setAtribuidoFilter] = useState<string>("todos");
+  const [mesFiltro, setMesFiltro] = useState<string>(() => format(new Date(), "yyyy-MM"));
   const [showForm, setShowForm] = useState(false);
   const [editingChamado, setEditingChamado] = useState<any>(null);
   const [detailsChamado, setDetailsChamado] = useState<any>(null);
@@ -40,7 +41,8 @@ export default function Chamados() {
         .from("chamados")
         .select(`
           *,
-          unidade:unidades(nome, codigo)
+          unidade:unidades(nome, codigo),
+          responsavel:profiles(full_name)
         `)
         .order("data_abertura", { ascending: false });
 
@@ -75,6 +77,27 @@ export default function Chamados() {
     em_andamento: chamados?.filter((c) => c.status === "em_andamento").length || 0,
     concluidos: chamados?.filter((c) => c.status === "concluido").length || 0,
   };
+
+  const mesesDisponiveis = Array.from(
+    new Set(
+      (chamados || [])
+        .flatMap((c) => [c.data_abertura, c.data_conclusao].filter(Boolean))
+        .map((data) => format(new Date(data as string), "yyyy-MM"))
+    )
+  ).sort((a, b) => (a > b ? -1 : 1));
+
+  const totalMesSelecionado =
+    chamados?.filter(
+      (c) => c.data_abertura && format(new Date(c.data_abertura), "yyyy-MM") === mesFiltro
+    ).length || 0;
+
+  const concluidosMesSelecionado =
+    chamados?.filter(
+      (c) =>
+        c.status === "concluido" &&
+        c.data_conclusao &&
+        format(new Date(c.data_conclusao), "yyyy-MM") === mesFiltro
+    ).length || 0;
 
   const handleEdit = (chamado: any) => {
     setEditingChamado(chamado);
@@ -122,11 +145,7 @@ export default function Chamados() {
           </Button>
         </div>
 
-        <div className="grid gap-4 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-4 text-center space-y-1">
-            <div className="text-sm font-medium text-muted-foreground">Total</div>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </Card>
+        <div className="grid gap-4 rounded-lg border bg-card p-4 sm:grid-cols-2">
           <Card className="p-4 text-center space-y-1">
             <div className="text-sm font-medium text-muted-foreground">Abertos</div>
             <div className="text-2xl font-bold text-yellow-600">{stats.abertos}</div>
@@ -135,10 +154,37 @@ export default function Chamados() {
             <div className="text-sm font-medium text-muted-foreground">Em Andamento</div>
             <div className="text-2xl font-bold text-blue-600">{stats.em_andamento}</div>
           </Card>
-          <Card className="p-4 text-center space-y-1">
-            <div className="text-sm font-medium text-muted-foreground">Concluídos</div>
-            <div className="text-2xl font-bold text-green-600">{stats.concluidos}</div>
-          </Card>
+        </div>
+
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Indicadores por mês</h2>
+            <Select value={mesFiltro} onValueChange={setMesFiltro}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Selecione o mês" />
+              </SelectTrigger>
+              <SelectContent>
+                {mesesDisponiveis.length === 0 && (
+                  <SelectItem value={mesFiltro}>{format(new Date(), "MMMM/yyyy", { locale: ptBR })}</SelectItem>
+                )}
+                {mesesDisponiveis.map((mes) => (
+                  <SelectItem key={mes} value={mes}>
+                    {format(new Date(mes + "-01"), "MMMM/yyyy", { locale: ptBR })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="p-4 text-center space-y-1">
+              <div className="text-sm font-medium text-muted-foreground">Total do mês</div>
+              <div className="text-2xl font-bold">{totalMesSelecionado}</div>
+            </Card>
+            <Card className="p-4 text-center space-y-1">
+              <div className="text-sm font-medium text-muted-foreground">Concluídos no mês</div>
+              <div className="text-2xl font-bold text-green-600">{concluidosMesSelecionado}</div>
+            </Card>
+          </div>
         </div>
 
         <div className="rounded-lg border bg-card p-4 space-y-3">

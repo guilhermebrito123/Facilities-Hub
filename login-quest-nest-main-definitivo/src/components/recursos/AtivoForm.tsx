@@ -91,14 +91,14 @@ export function AtivoForm({ open, onOpenChange, ativo, onSuccess }: AtivoFormPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-full">
         <DialogHeader>
           <DialogTitle>
             {ativo ? "Editar Ativo" : "Cadastrar Novo Ativo"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="unidade_id">Unidade *</Label>
               <Select

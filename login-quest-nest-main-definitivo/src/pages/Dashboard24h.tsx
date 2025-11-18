@@ -61,15 +61,16 @@ interface UnidadeComDados {
   meta_sla: number | null;
 }
 
-interface Alerta {
+interface ChamadoFeed {
   id: string;
-  timestamp: string;
-  tipo: string;
-  cliente: string;
-  unidade: string;
-  status: string;
-  severidade: string;
-  descricao: string;
+  numero: string | null;
+  titulo: string | null;
+  prioridade: string | null;
+  status: string | null;
+  data_abertura: string | null;
+  unidade: {
+    nome: string | null;
+  } | null;
 }
 
 interface ChecklistExecucaoResumo {
@@ -92,7 +93,7 @@ export default function Dashboard24h() {
   const map = useRef<mapboxgl.Map | null>(null);
 
   const [unidades, setUnidades] = useState<UnidadeComDados[]>([]);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [chamadosFeed, setChamadosFeed] = useState<ChamadoFeed[]>([]);
   const [checklistExecucoes, setChecklistExecucoes] = useState<
     ChecklistExecucaoResumo[]
   >([]);
@@ -156,7 +157,7 @@ export default function Dashboard24h() {
       await Promise.all([
         loadUnidades(roleData?.role),
         loadStats(roleData?.role),
-        loadAlertas(roleData?.role),
+        loadChamadosFeed(),
         loadChecklistExecucoes(),
       ]);
     } catch (error) {
@@ -494,34 +495,19 @@ export default function Dashboard24h() {
         .limit(5);
 
       if (error) throw error;
-      setChecklistExecucoes((data as ChecklistExecucaoResumo[]) || []);
+      const filtradas =
+        (data as ChecklistExecucaoResumo[] | null)?.filter(
+          (exec) => exec.status !== "concluido" && exec.status !== "cancelado"
+        ) || [];
+      setChecklistExecucoes(filtradas);
     } catch (error) {
       console.error("Error loading checklist executions:", error);
     }
   };
 
-  const loadAlertas = async (role: string | null) => {
+  const loadChamadosFeed = async () => {
     try {
-      // Get recent incidents and chamados
-      const { data: incidentes } = await supabase
-        .from("incidentes")
-        .select(
-          `
-          id,
-          numero,
-          titulo,
-          severidade,
-          status,
-          created_at,
-          unidade:unidades(nome),
-          cliente:unidades(contratos(clientes(razao_social)))
-        `
-        )
-        .in("status", ["aberto", "em_investigacao"])
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const { data: chamados } = await supabase
+      const { data, error } = await supabase
         .from("chamados")
         .select(
           `
@@ -530,44 +516,17 @@ export default function Dashboard24h() {
           titulo,
           prioridade,
           status,
-          created_at,
-          unidade:unidades(nome),
-          cliente:unidades(contratos(clientes(razao_social)))
+          data_abertura,
+          unidade:unidades(nome)
         `
         )
-        .in("status", ["aberto", "em_andamento"])
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .neq("status", "concluido")
+        .order("data_abertura", { ascending: false });
 
-      const alertasFormatados: Alerta[] = [
-        ...(incidentes || []).map((inc) => ({
-          id: inc.id,
-          timestamp: inc.created_at,
-          tipo: "Incidente",
-          cliente: inc.cliente?.contratos?.clientes?.razao_social || "N/A",
-          unidade: inc.unidade?.nome || "N/A",
-          status: inc.status,
-          severidade: inc.severidade,
-          descricao: inc.titulo,
-        })),
-        ...(chamados || []).map((ch) => ({
-          id: ch.id,
-          timestamp: ch.created_at,
-          tipo: "Chamado",
-          cliente: ch.cliente?.contratos?.clientes?.razao_social || "N/A",
-          unidade: ch.unidade?.nome || "N/A",
-          status: ch.status,
-          severidade: ch.prioridade,
-          descricao: ch.titulo,
-        })),
-      ].sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-
-      setAlertas(alertasFormatados);
+      if (error) throw error;
+      setChamadosFeed((data as ChamadoFeed[]) || []);
     } catch (error) {
-      console.error("Error loading alertas:", error);
+      console.error("Error loading chamados feed:", error);
     }
   };
 
@@ -701,7 +660,7 @@ export default function Dashboard24h() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">
-              Dashboard 24/7 â€“ Resumo Executivo
+              Dashboard 24/7 Resumo Executivo
             </h1>
             <p className="text-muted-foreground">Monitoramento em tempo real</p>
           </div>
@@ -724,12 +683,12 @@ export default function Dashboard24h() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
-                Incidentes por Severidade (DisponÃ­vel em breve!)
+                Incidentes por Severidade (Disponí­vel em breve!)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm">CrÃ­tico</span>
+                <span className="text-sm">Crí­tico</span>
                 <Badge variant="destructive">{stats.incidentes_critico}</Badge>
               </div>
               <div className="flex items-center justify-between">
@@ -737,7 +696,7 @@ export default function Dashboard24h() {
                 <Badge variant="destructive">{stats.incidentes_alto}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">MÃ©dio</span>
+                <span className="text-sm">Médio</span>
                 <Badge variant="secondary">{stats.incidentes_medio}</Badge>
               </div>
             </CardContent>
@@ -760,57 +719,55 @@ export default function Dashboard24h() {
                 <Badge variant="destructive">{stats.chamados_alto}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">MÃ©dia</span>
+                <span className="text-sm">Média</span>
                 <Badge variant="secondary">{stats.chamados_medio}</Badge>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Map and Alerts */}
+        {/* Map and Lists */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Alerts Feed */}
+          {/* Chamados */}
           <Card className="h-[500px]">
             <CardHeader>
-              <CardTitle>Feed de Alertas ao Vivo</CardTitle>
-              <CardDescription>AtualizaÃ§Ãµes em tempo real</CardDescription>
+              <CardTitle>Chamados em aberto</CardTitle>
+              <CardDescription>Chamados ainda não concluídos</CardDescription>
             </CardHeader>
-                        <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
-              {checklistExecucoes.length === 0 && (
+            <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
+              {chamadosFeed.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                  Nenhuma execução de checklist cadastrada até o momento.
+                  Nenhum chamado pendente no momento.
                 </p>
               )}
-              {checklistExecucoes.map((execucao) => (
-                <div key={execucao.id} className="p-3 rounded-lg border bg-background space-y-2">
+              {chamadosFeed.map((chamado) => (
+                <div key={chamado.id} className="p-3 rounded-lg border bg-background space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold">
-                        {execucao.checklist?.nome || `Checklist ${execucao.checklist_id ?? "-"}`}
+                        {chamado.titulo || `Chamado ${chamado.numero ?? "-"}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {execucao.supervisor?.full_name
-                          ? `Supervisor: ${execucao.supervisor.full_name}`
-                          : "Supervisor nao informado"}
+                        {chamado.unidade?.nome ? `Unidade: ${chamado.unidade.nome}` : "Unidade não informada"}
                       </p>
                     </div>
-                    <Badge variant={getChecklistStatusVariant(execucao.status)} className="capitalize">
-                      {execucao.status}
+                    <Badge variant="outline" className="capitalize">
+                      {chamado.status}
                     </Badge>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>Prioridade: {chamado.prioridade || "-"}</span>
                     <span>
-                      Previsto:{" "}
-                      {execucao.data_prevista
-                        ? new Date(execucao.data_prevista).toLocaleDateString("pt-BR")
+                      Aberto em:{" "}
+                      {chamado.data_abertura
+                        ? new Date(chamado.data_abertura).toLocaleString("pt-BR")
                         : "-"}
                     </span>
-                    <span>
-                      Finalizado:{" "}
-                      {execucao.finalizado_em
-                        ? new Date(execucao.finalizado_em).toLocaleString("pt-BR")
-                        : "-"}
-                    </span>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button size="sm" variant="outline" onClick={() => navigate("/chamados")}>
+                      Ver detalhes
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -819,9 +776,9 @@ export default function Dashboard24h() {
 
           <Card className="h-[500px]">
             <CardHeader>
-              <CardTitle>ExecuÃ§Ã£o de Checklists</CardTitle>
+              <CardTitle>Execução de Checklists</CardTitle>
               <CardDescription>
-                Acompanhamento das execuÃ§Ãµes registradas
+                Acompanhamento das execuções registradas
               </CardDescription>
             </CardHeader>
                         <CardContent className="h-[calc(100%-100px)] overflow-y-auto space-y-3">
@@ -861,6 +818,11 @@ export default function Dashboard24h() {
                         : "-"}
                     </span>
                   </div>
+                  <div className="flex justify-end">
+                    <Button size="sm" variant="outline" onClick={() => navigate("/checklist-execucoes")}>
+                      Ver detalhes
+                    </Button>
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -870,7 +832,7 @@ export default function Dashboard24h() {
                 variant="outline"
                 onClick={() => navigate("/checklist-execucoes")}
               >
-                Gerenciar execuÃ§Ãµes
+                Gerenciar execuções
               </Button>
             </div>
           </Card>

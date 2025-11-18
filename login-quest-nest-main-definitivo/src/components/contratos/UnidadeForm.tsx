@@ -61,7 +61,7 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
 
   const loadUnidade = async () => {
     if (!unidadeId) return;
-    
+
     const { data, error } = await supabase
       .from("unidades")
       .select("*")
@@ -98,7 +98,6 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
     setLoading(true);
 
     try {
-      // Convert latitude and longitude to numbers or null
       const payload = {
         ...formData,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
@@ -106,24 +105,15 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
       };
 
       if (unidadeId) {
-        const { error } = await supabase
-          .from("unidades")
-          .update(payload)
-          .eq("id", unidadeId);
-
+        const { error } = await supabase.from("unidades").update(payload).eq("id", unidadeId);
         if (error) throw error;
-
         toast({
           title: "Unidade atualizada",
           description: "Unidade atualizada com sucesso",
         });
       } else {
-        const { error } = await supabase
-          .from("unidades")
-          .insert([payload]);
-
+        const { error } = await supabase.from("unidades").insert([payload]);
         if (error) throw error;
-
         toast({
           title: "Unidade criada",
           description: "Unidade criada com sucesso",
@@ -144,17 +134,15 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{unidadeId ? "Editar Unidade" : "Nova Unidade"}</DialogTitle>
-          <DialogDescription>
-            Preencha os dados da unidade
-          </DialogDescription>
+          <DialogDescription>Preencha os dados da unidade</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="contrato_id">Contrato *</Label>
               <Select
                 value={formData.contrato_id}
@@ -177,13 +165,11 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome da Unidade *</Label>
+              <Label htmlFor="nome">Nome *</Label>
               <Input
                 id="nome"
                 value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 required
               />
             </div>
@@ -193,21 +179,17 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
               <Input
                 id="codigo"
                 value={formData.codigo}
-                onChange={(e) =>
-                  setFormData({ ...formData, codigo: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                 required
               />
             </div>
 
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="endereco">Endereço</Label>
               <Input
                 id="endereco"
                 value={formData.endereco}
-                onChange={(e) =>
-                  setFormData({ ...formData, endereco: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
               />
             </div>
 
@@ -216,9 +198,7 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
               <Input
                 id="cidade"
                 value={formData.cidade}
-                onChange={(e) =>
-                  setFormData({ ...formData, cidade: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
               />
             </div>
 
@@ -227,9 +207,7 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
               <Input
                 id="uf"
                 value={formData.uf}
-                onChange={(e) =>
-                  setFormData({ ...formData, uf: e.target.value.toUpperCase() })
-                }
+                onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase() })}
                 maxLength={2}
                 placeholder="SP"
               />
@@ -240,9 +218,7 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
               <Input
                 id="cep"
                 value={formData.cep}
-                onChange={(e) =>
-                  setFormData({ ...formData, cep: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
                 placeholder="00000-000"
               />
             </div>
@@ -254,9 +230,7 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
                 type="number"
                 step="any"
                 value={formData.latitude}
-                onChange={(e) =>
-                  setFormData({ ...formData, latitude: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
                 placeholder="-15.7801"
               />
             </div>
@@ -268,21 +242,16 @@ const UnidadeForm = ({ unidadeId, contratoId, onClose, onSuccess }: UnidadeFormP
                 type="number"
                 step="any"
                 value={formData.longitude}
-                onChange={(e) =>
-                  setFormData({ ...formData, longitude: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
                 placeholder="-47.9292"
               />
             </div>
-
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>
                   <SelectValue />

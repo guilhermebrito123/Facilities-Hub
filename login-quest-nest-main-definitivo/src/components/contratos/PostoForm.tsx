@@ -28,12 +28,7 @@ interface PostoFormProps {
   onSuccess: () => void;
 }
 
-const PostoForm = ({
-  postoId,
-  unidadeId,
-  onClose,
-  onSuccess,
-}: PostoFormProps) => {
+const PostoForm = ({ postoId, unidadeId, onClose, onSuccess }: PostoFormProps) => {
   const [loading, setLoading] = useState(false);
   const [unidades, setUnidades] = useState<any[]>([]);
   const initialState = {
@@ -135,18 +130,16 @@ const PostoForm = ({
 
         toast({
           title: "Posto atualizado",
-          description: "Posto de serviço atualizado com sucesso",
+          description: "Posto atualizado com sucesso",
         });
       } else {
-        const { error } = await supabase
-          .from("postos_servico")
-          .insert([dataToSave]);
+        const { error } = await supabase.from("postos_servico").insert([dataToSave]);
 
         if (error) throw error;
 
         toast({
           title: "Posto criado",
-          description: "Posto de serviço criado com sucesso",
+          description: "Posto criado com sucesso",
         });
       }
 
@@ -164,29 +157,23 @@ const PostoForm = ({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {postoId ? "Editar Posto" : "Novo Posto de Serviço"}
-          </DialogTitle>
-          <DialogDescription>
-            Preencha os dados do posto de serviço
-          </DialogDescription>
+          <DialogTitle>{postoId ? "Editar Posto" : "Novo Posto"}</DialogTitle>
+          <DialogDescription>Preencha os dados do posto de serviço</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="unidade_id">Unidade *</Label>
               <Select
                 value={formData.unidade_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, unidade_id: value })
-                }
+                onValueChange={(value) => setFormData({ ...formData, unidade_id: value })}
                 disabled={!!unidadeId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma unidade" />
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   {unidades.map((unidade) => (
@@ -199,13 +186,11 @@ const PostoForm = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome do Posto *</Label>
+              <Label htmlFor="nome">Nome *</Label>
               <Input
                 id="nome"
                 value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 required
               />
             </div>
@@ -215,23 +200,17 @@ const PostoForm = ({
               <Input
                 id="codigo"
                 value={formData.codigo}
-                onChange={(e) =>
-                  setFormData({ ...formData, codigo: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="funcao">Função *</Label>
+              <Label htmlFor="funcao">Função</Label>
               <Input
                 id="funcao"
                 value={formData.funcao}
-                onChange={(e) =>
-                  setFormData({ ...formData, funcao: e.target.value })
-                }
-                placeholder="Ex: Técnico de Limpeza"
-                required
+                onChange={(e) => setFormData({ ...formData, funcao: e.target.value })}
               />
             </div>
 
@@ -240,10 +219,8 @@ const PostoForm = ({
               <Input
                 id="escala"
                 value={formData.escala}
-                onChange={(e) =>
-                  setFormData({ ...formData, escala: e.target.value })
-                }
-                placeholder="Ex: 12x36"
+                onChange={(e) => setFormData({ ...formData, escala: e.target.value })}
+                placeholder="Ex: 12x36, 5x2, etc."
               />
             </div>
 
@@ -251,12 +228,10 @@ const PostoForm = ({
               <Label htmlFor="turno">Turno</Label>
               <Select
                 value={formData.turno}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, turno: value })
-                }
+                onValueChange={(value) => setFormData({ ...formData, turno: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o turno" />
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manha">Manhã</SelectItem>
@@ -273,9 +248,7 @@ const PostoForm = ({
               <Input
                 id="jornada"
                 value={formData.jornada}
-                onChange={(e) =>
-                  setFormData({ ...formData, jornada: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, jornada: e.target.value })}
                 placeholder="Ex: 44h semanais"
               />
             </div>
@@ -286,9 +259,7 @@ const PostoForm = ({
                 id="horario_inicio"
                 type="time"
                 value={formData.horario_inicio}
-                onChange={(e) =>
-                  setFormData({ ...formData, horario_inicio: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, horario_inicio: e.target.value })}
               />
             </div>
 
@@ -298,25 +269,18 @@ const PostoForm = ({
                 id="horario_fim"
                 type="time"
                 value={formData.horario_fim}
-                onChange={(e) =>
-                  setFormData({ ...formData, horario_fim: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, horario_fim: e.target.value })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="intervalo_refeicao">
-                Intervalo Refeição (min)
-              </Label>
+              <Label htmlFor="intervalo_refeicao">Intervalo Refeição (min)</Label>
               <Input
                 id="intervalo_refeicao"
                 type="number"
                 value={formData.intervalo_refeicao}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    intervalo_refeicao: e.target.value,
-                  })
+                  setFormData({ ...formData, intervalo_refeicao: e.target.value })
                 }
                 placeholder="60"
               />
@@ -329,10 +293,7 @@ const PostoForm = ({
                 type="number"
                 value={formData.efetivo_planejado}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    efetivo_planejado: e.target.value,
-                  })
+                  setFormData({ ...formData, efetivo_planejado: e.target.value })
                 }
                 required
               />
@@ -342,9 +303,7 @@ const PostoForm = ({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -357,14 +316,12 @@ const PostoForm = ({
               </Select>
             </div>
 
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="observacoes">Observações</Label>
               <Textarea
                 id="observacoes"
                 value={formData.observacoes}
-                onChange={(e) =>
-                  setFormData({ ...formData, observacoes: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                 rows={3}
               />
             </div>
